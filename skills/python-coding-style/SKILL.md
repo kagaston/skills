@@ -1,6 +1,6 @@
 ---
 name: python-coding-style
-description: Python coding standards including naming, typing, docstrings, and error handling
+description: Python coding standards including naming, typing, docstrings, comments, and error handling
 ---
 
 # Python Coding Style
@@ -14,13 +14,21 @@ Apply these Python coding standards when writing or reviewing Python code.
 3. **Consistency**: Follow established patterns in the codebase
 4. **Simplicity**: Prefer simple solutions over clever ones
 
+## Quality Philosophy
+
+- **Comments explain "why" not "what"**: Code should be self-documenting; comments clarify intent, edge cases, and non-obvious decisions
+- **No hardcoded secrets**: Use environment variables, config, or secret managers—never commit API keys, passwords, or tokens
+- **Security-first**: Validate input, sanitize output, prefer parameterized queries, avoid `eval()` and unsafe deserialization
+
 ## Formatting
 
-- **Line Length**: Maximum 88 characters (Black default)
+- **Line Length**: Maximum 120 characters
+- **Indentation**: 4 spaces (no tabs)
 - **Quotes**: Use double quotes `"` for strings
-- **Formatter**: Use `ruff format` or `black`
+- **Formatter**: Use `ruff format` (not black)
 
 ### Import Order
+
 ```python
 # Standard library
 import os
@@ -36,9 +44,54 @@ from app.errors import AppError
 from app.settings import Settings
 ```
 
+## Comment Conventions
+
+**Docstring-first**: Use triple-quoted docstrings (`"""`) for all block-level documentation and longer explanations. Use single `#` comments only for brief inline annotations.
+
+### When to Use Docstrings
+
+- Module-level documentation
+- Class documentation
+- Function/method documentation
+- Any multi-line or block-level explanation
+
+### When to Use `#` Comments
+
+- Single-line inline annotations
+- Brief TODOs or FIXMEs
+- Section dividers (see below)
+
+### Section Dividers
+
+Use `# ---` for subsection dividers and `# ===` for major section dividers in large files:
+
+```python
+# === Data Models ===
+
+# --- User ---
+class User(BaseModel):
+    """User entity with validated fields."""
+    pass
+
+# --- Session ---
+class Session(BaseModel):
+    """Active session state."""
+    pass
+
+# === API Handlers ===
+
+# --- Authentication ---
+def authenticate(token: str) -> User | None:
+    """Validate token and return user or None."""
+    pass
+```
+
+**Never** use multi-line `#` comment blocks when a docstring would serve better.
+
 ## Naming Conventions
 
 ### Variables and Functions
+
 ```python
 # Good - snake_case
 user_name = "john"
@@ -50,6 +103,7 @@ userName = "john"
 ```
 
 ### Classes
+
 ```python
 # Good - PascalCase
 class UserRepository:
@@ -60,6 +114,7 @@ class HTTPClient:  # Acronyms capitalized
 ```
 
 ### Constants
+
 ```python
 # Good - SCREAMING_SNAKE_CASE
 MAX_RETRIES = 3
@@ -68,18 +123,19 @@ API_BASE_URL = "https://api.example.com"
 ```
 
 ### Private Members
+
 ```python
 class User:
     def __init__(self):
         self._internal_state = {}  # Single underscore for internal
-    
-    def _helper_method(self):      # Internal method
+
+    def _helper_method(self):  # Internal method
         pass
 ```
 
 ## Type Hints
 
-Always use type hints:
+Type hints are required for all public functions and methods:
 
 ```python
 # Good
@@ -95,6 +151,7 @@ def process_items(items, limit=10):
 ```
 
 ### Optional Types
+
 ```python
 # Python 3.10+
 def find_user(user_id: int) -> User | None:
@@ -104,6 +161,7 @@ def find_user(user_id: int) -> User | None:
 ## Docstrings
 
 ### Function Docstrings
+
 ```python
 def create_user(name: str, email: str, role: str = "user") -> User:
     """
@@ -125,6 +183,7 @@ def create_user(name: str, email: str, role: str = "user") -> User:
 ```
 
 ### Class Docstrings
+
 ```python
 class UserRepository:
     """
@@ -146,7 +205,10 @@ class UserRepository:
 
 ## Error Handling
 
+Use custom exceptions for application errors. Handle errors explicitly; avoid bare `except:`.
+
 ### Custom Exceptions
+
 ```python
 # In app/errors/__init__.py
 class AppError(Exception):
@@ -163,6 +225,7 @@ class NotFoundError(AppError):
 ```
 
 ### Exception Handling
+
 ```python
 # Good - specific exceptions
 try:
@@ -184,6 +247,7 @@ except:  # Never do this
 ## Classes and Pydantic
 
 ### Dataclasses for Simple Containers
+
 ```python
 from dataclasses import dataclass
 
@@ -194,13 +258,14 @@ class Point:
 ```
 
 ### Pydantic for Validation
+
 ```python
 from pydantic import BaseModel
 
 class UserCreate(BaseModel):
     name: str
     email: str
-    
+
     class Config:
         str_strip_whitespace = True
 ```
@@ -208,13 +273,17 @@ class UserCreate(BaseModel):
 ## Tools Configuration
 
 ### pyproject.toml
+
 ```toml
 [tool.ruff]
 target-version = "py311"
-line-length = 88
+line-length = 120
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "C4", "PTH", "RUF"]
+
+[tool.ruff.format]
+quote-style = "double"
 
 [tool.mypy]
 python_version = "3.11"
@@ -229,3 +298,6 @@ strict = true
 - [ ] No bare `except:` clauses
 - [ ] Imports are organized (stdlib, third-party, local)
 - [ ] Naming follows conventions (snake_case, PascalCase, SCREAMING_SNAKE_CASE)
+- [ ] No hardcoded secrets; use env/config
+- [ ] Docstrings for block-level docs; `#` for brief inline only
+- [ ] 4-space indent; `ruff format` used

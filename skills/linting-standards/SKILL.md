@@ -1,6 +1,6 @@
 ---
 name: linting-standards
-description: Linting configuration for Python (ruff), Go (golangci-lint), TypeScript (biome), Terraform (tflint), and Shell (shellcheck)
+description: Linting configuration for Python (ruff), Go (golangci-lint), TypeScript (biome), Terraform (tflint + tfsec), Shell (shellcheck + shfmt), and YAML (yamllint)
 ---
 
 # Linting Standards
@@ -13,13 +13,29 @@ Apply these linting standards to maintain code quality. Linting should be automa
 2. **Fail Fast** - Run linters early in CI pipeline
 3. **Fix, Don't Ignore** - Address issues, don't disable rules
 
+## Multi-Language Quality Gate
+
+All must pass before commit: **format → lint → typecheck → test**
+
+| Step | Purpose |
+|------|---------|
+| 1. Format | Apply consistent style (quotes, line length, indentation) |
+| 2. Lint | Catch bugs, security issues, style violations; auto-fix where possible |
+| 3. Typecheck | Static type verification (Python, TypeScript) |
+| 4. Test | Unit/integration tests |
+
 ## Python (ruff + basedpyright)
 
 ### Tools
-- **Linter/Formatter**: `ruff` (replaces black, isort, flake8)
+- **Linter/Formatter**: `ruff` (replaces pylint, black, isort, flake8)
 - **Type Checker**: `basedpyright` (stricter pyright fork)
 
-### pyproject.toml Configuration (Block Standard)
+### Execution Order
+1. `ruff format .` — formatting (quotes, line length)
+2. `ruff check --fix .` — linting + isort via `I` rule, auto-fixes
+3. `basedpyright src/` — type checking
+
+### pyproject.toml Configuration
 
 ```toml
 [tool.ruff]
@@ -50,12 +66,6 @@ exclude = ["tests/**"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
-
-[tool.ruff.lint.pylint]
-max-args = 5
-max-branches = 12
-max-returns = 6
-max-statements = 50
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -140,12 +150,12 @@ linters-settings:
 
 ### justfile Commands
 ```just
-lint:
-    golangci-lint run ./...
-
 format:
     gofmt -s -w .
     goimports -w .
+
+lint:
+    golangci-lint run ./...
 ```
 
 ## TypeScript/JavaScript (biome)
@@ -220,34 +230,37 @@ format-shell:
     shfmt -w scripts/
 ```
 
-## Pre-commit Hooks (lefthook)
+## YAML (yamllint)
 
-### lefthook.yml
+### .yamllint Configuration
 ```yaml
-pre-commit:
-  parallel: true
-  commands:
-    lint-python:
-      glob: "*.py"
-      run: uv run ruff check {staged_files}
-    format-python:
-      glob: "*.py"
-      run: uv run ruff format --check {staged_files}
-    lint-go:
-      glob: "*.go"
-      run: golangci-lint run {staged_files}
-    lint-ts:
-      glob: "*.{ts,tsx}"
-      run: biome check {staged_files}
+rules:
+  document-start: disable
+  line-length:
+    max: 120
+  indentation:
+    spaces: 2
+  comments:
+    min-spaces-from-content: 1
+```
+
+### justfile Commands
+```just
+lint-yaml:
+    yamllint .
 ```
 
 ## Verification Checklist
 
-- [ ] Python: ruff config with Block's rule selection
+- [ ] Python: ruff as single tool (replaces pylint, black, isort, flake8)
+- [ ] Python: Execution order — format → lint → typecheck
 - [ ] Python: basedpyright in strict mode
-- [ ] Python: Line length is 120 (Block standard)
+- [ ] Python: Line length 120
 - [ ] Go: golangci-lint with gosec enabled
 - [ ] TypeScript: biome configured
 - [ ] Terraform: tflint + tfsec configured
+- [ ] Shell: shellcheck + shfmt
+- [ ] YAML: yamllint configured
+- [ ] Quality gate: format → lint → typecheck → test
 - [ ] `just lint` and `just format` commands work
 - [ ] CI runs `just check` (nox for Python)
