@@ -36,6 +36,8 @@ just validate
 | `elixir-coding-style` | GenServer patterns, `@moduledoc`/`@doc`, cyclic dep detection, codegen sync |
 | `terraform-coding-style` | Plan-first workflow, quality gates, YAML-to-TF, naming, debugging |
 | `shell-coding-style` | `set -euo pipefail`, shellcheck, shfmt, variable safety |
+| `bash-cross-platform` | Bash 3.2 compatibility, macOS/Linux differences, platform wrappers |
+| `shell-project-architecture` | Multi-module shell projects: pipelines, dispatch, profiles, pure-bash JSON |
 | `frontend-design` | Distinctive, production-grade UI with bold aesthetic direction |
 
 ### MCP / Integrations

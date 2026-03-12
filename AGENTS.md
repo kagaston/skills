@@ -43,7 +43,7 @@ Development guidance lives in `skills/`. Read the relevant SKILL.md before start
 | Category | Skills |
 |----------|--------|
 | Python | `python-project-structure`, `python-coding-style`, `python-api-structure`, `python-precommit-setup`, `python-debugging` |
-| Other Languages | `go-coding-style`, `typescript-coding-style`, `elixir-coding-style`, `terraform-coding-style`, `shell-coding-style`, `frontend-design` |
+| Other Languages | `go-coding-style`, `typescript-coding-style`, `elixir-coding-style`, `terraform-coding-style`, `shell-coding-style`, `bash-cross-platform`, `shell-project-architecture`, `frontend-design` |
 | Cross-Language | `linting-standards`, `testing-standards`, `ci-cd-patterns`, `cross-language-comments`, `documentation-standards`, `terraform-project-structure` |
 | Git | `git-conventions`, `git-branching`, `git-pull-requests`, `project-templates` |
 | Documentation | `readme-blueprint-generator` |
