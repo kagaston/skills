@@ -71,10 +71,37 @@ If a `.github/copilot/` directory exists with pre-analyzed docs (Architecture, T
 
 Generate the README using proper Markdown. Adapt sections based on what you actually found -- skip sections where you have no real information rather than writing vague filler.
 
+#### Badges
+
+Add badges at the top of the README, directly below the H1 project name. Badges give readers instant signal about the project's health and stack. Include every badge you can determine from the project files -- don't skip this step.
+
+| Badge | When to include | Source |
+|-------|----------------|--------|
+| CI status | GitHub Actions workflow exists in `.github/workflows/` | Repo URL + workflow name |
+| Language | Always | `pyproject.toml`, `go.mod`, `package.json`, `mix.exs`, `Cargo.toml` |
+| Python/Node/Go version | Version constraint found in config | Config file |
+| License | `LICENSE` file exists | License type from file |
+| Code style | Linter/formatter configured | `ruff`, `biome`, `golangci-lint`, etc. |
+| Coverage | Coverage tool configured | pytest-cov, istanbul, etc. |
+| Package version | Published package with version | `pyproject.toml` `version`, `package.json` `version` |
+
+```markdown
+# Project Name
+
+![CI](https://github.com/org/repo/actions/workflows/ci.yml/badge.svg)
+![Python](https://img.shields.io/badge/python-3.11+-blue)
+![Ruff](https://img.shields.io/badge/code%20style-ruff-000000)
+![License](https://img.shields.io/badge/license-MIT-green)
+```
+
+When you cannot determine the repo URL (no `.git/config` or remote), use static shields.io badges for language and license. When you can determine the GitHub org/repo, use dynamic badges that reflect live status.
+
 #### Section order
 
 ```markdown
 # Project Name
+
+<!-- badges here -->
 
 Brief description -- what it does and why it exists.
 
@@ -134,7 +161,7 @@ Skip diagrams only when the project is too simple to benefit (single script, tin
 - **Is a library/package**: Add a Usage section with import examples after Getting Started.
 - **Is an API service**: Add an API Overview section with key endpoints.
 - **Is a monorepo**: Add a Packages/Workspace Members section listing each member and its purpose.
-- **Has CI/CD**: Mention the CI setup; add badges if you can determine the repo URL and CI provider.
+- **Has CI/CD**: Mention the CI setup; add CI status badge at the top of the README.
 - **Has Dockerfile**: Add a Docker section under Getting Started.
 
 ### Phase 4: Polish
@@ -162,6 +189,7 @@ The README should reflect the project's actual state, not its aspirations. If te
 - **Stale tech stack**: Listing dependencies not in the actual config files
 - **Generic filler**: "This project follows best practices" without specifics
 - **Missing prerequisites**: Forgetting to mention required system tools (Docker, uv, Node, etc.)
+- **No badges**: Every README should have at least language and license badges
 - **Broken links**: Referencing files that don't exist
 
 ## Verification Checklist
@@ -170,6 +198,7 @@ The README should reflect the project's actual state, not its aspirations. If te
 - [ ] Tech stack sourced from actual config files (pyproject.toml, package.json, etc.)
 - [ ] All commands verified against justfile/Makefile
 - [ ] Project structure matches actual directory listing
+- [ ] Badges included (at minimum: language and license; CI status when available)
 - [ ] Mermaid diagram included for architecture (unless project is trivially simple)
 - [ ] No placeholder text remains
 - [ ] Code blocks have language tags
