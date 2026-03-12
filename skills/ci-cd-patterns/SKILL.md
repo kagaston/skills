@@ -92,6 +92,30 @@ update:
     uv lock --upgrade
 ```
 
+## Docker Project CI Preflight
+
+For Docker-only projects (no application source code), the preflight sequence differs:
+
+1. **Lint shell** -- `just lint-shell` (shellcheck)
+2. **Format shell** -- `just format-shell` (shfmt)
+3. **Lint Dockerfile** -- `just lint-docker` (hadolint)
+4. **Build** -- `just build`
+5. **Test structure** -- `just test-structure` (container-structure-test)
+6. **Test runtime** -- `just test-runtime` (dgoss)
+7. **Push** -- only after all pass
+
+```just
+preflight: lint-shell format-shell lint-docker build test-structure test-runtime
+```
+
+For projects with both application code and Docker, combine both preflights:
+
+```just
+preflight: format lint typecheck test lint-docker build test-structure
+```
+
+See [precommit-configs.md](references/precommit-configs.md) for complete Docker CI GitHub Actions workflows (single-image and multi-service).
+
 ## Release Management
 
 ### Semantic Versioning
@@ -134,7 +158,10 @@ MAJOR.MINOR.PATCH
 - [ ] Lint job runs before test job
 - [ ] Coverage reporting configured
 - [ ] Dockerfile uses multi-stage build
+- [ ] Docker CI: hadolint lint → build → structure test → vulnerability scan → push
+- [ ] Docker CI uses Buildx with GHA cache for faster builds
+- [ ] Docker CI pushes only on main branch
 
 ## Reference Files
 
-- [precommit-configs.md](references/precommit-configs.md) -- Full hook scripts, pre-commit YAML configs, GitHub Actions workflows, and Docker patterns
+- [precommit-configs.md](references/precommit-configs.md) -- Full hook scripts, pre-commit YAML configs, GitHub Actions workflows (Python, Go, Terraform, Docker), and Docker patterns

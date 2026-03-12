@@ -300,6 +300,102 @@ test-integration:
     pytest tests/integration/ -v -m integration
 ```
 
+## Docker Container Testing
+
+For Docker-based projects, test images at multiple layers.
+
+### Container Structure Test (Static)
+
+[container-structure-test](https://github.com/GoogleContainerTools/container-structure-test) validates image properties without running the container:
+
+```yaml
+# structure-test.yaml
+schemaVersion: "2.0.0"
+
+metadataTest:
+  exposedPorts: ["8000"]
+  user: "app"
+
+fileExistenceTests:
+  - name: "app directory exists"
+    path: /app
+    shouldExist: true
+    uid: 1000
+
+commandTests:
+  - name: "python3 is available"
+    command: "python3"
+    args: ["--version"]
+    expectedOutput: ["Python 3"]
+
+envVarTests:
+  - name: "APP_HOME is set"
+    key: "APP_HOME"
+    value: "/app"
+```
+
+```bash
+container-structure-test test --image app:latest --config structure-test.yaml
+```
+
+### dgoss (Runtime Contract Testing)
+
+[dgoss](https://github.com/goss-io/goss) verifies containers behave correctly at runtime -- ports listening, processes running, files accessible:
+
+```yaml
+# goss.yaml
+port:
+  tcp:8000:
+    listening: true
+
+process:
+  python3:
+    running: true
+
+user:
+  app:
+    exists: true
+    uid: 1000
+```
+
+```bash
+dgoss run -p 8000:8000 app:latest
+```
+
+### Testcontainers (Integration Tests)
+
+[Testcontainers](https://testcontainers.com) spins up real containers as test dependencies:
+
+```python
+from testcontainers.postgres import PostgresContainer
+
+def test_database_connection():
+    with PostgresContainer("postgres:16-alpine") as postgres:
+        engine = create_engine(postgres.get_connection_url())
+        assert engine.connect()
+```
+
+```go
+func TestWithPostgres(t *testing.T) {
+    ctx := context.Background()
+    pg, err := postgres.Run(ctx, "postgres:16-alpine")
+    assert.NoError(t, err)
+    defer pg.Terminate(ctx)
+}
+```
+
+### justfile
+
+```just
+test-structure:
+    container-structure-test test --image app:latest --config structure-test.yaml
+
+test-runtime:
+    dgoss run app:latest
+
+test-docker: build test-structure test-runtime
+```
+
 ## Verification Checklist
 
 - [ ] Tests follow AAA pattern
@@ -307,4 +403,5 @@ test-integration:
 - [ ] conftest.py has shared fixtures
 - [ ] Coverage configured (>80% target)
 - [ ] Unit and integration tests separated
+- [ ] Docker images tested (structure + runtime) when applicable
 - [ ] `just test` command works
