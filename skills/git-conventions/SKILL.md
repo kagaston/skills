@@ -70,12 +70,13 @@ feat(rpc)!: switch wire format from JSON to msgpack
 
 ### Branch Naming
 
-```
-feat/short-description
-fix/issue-number-description
-docs/what-changed
-refactor/area-description
-```
+Use the same type prefixes as commits: `feat/short-description`, `fix/42-null-response`, `docs/api-guide`. See the **git-branching** skill for full naming conventions and trunk-based workflow.
+
+## Related Skills
+
+- **git-branching** -- branching strategies, branch lifecycle, trunk-based development
+- **git-pull-requests** -- PR workflow, using project templates, pushing PRs via CLI
+- **project-templates** -- creating PR/issue templates and CODEOWNERS when none exist
 
 ### Verification Checklist
 
@@ -84,3 +85,4 @@ refactor/area-description
 - [ ] One logical change per commit
 - [ ] Breaking changes marked with `!` or footer
 - [ ] Body explains "why" for non-trivial changes
+- [ ] Branch name uses type prefix (`feat/`, `fix/`, etc.)

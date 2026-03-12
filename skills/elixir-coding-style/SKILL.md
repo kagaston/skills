@@ -96,6 +96,8 @@ mise run lint       # or: mix format --check && mix credo
 
 ## Development Commands
 
+Elixir projects use `mise` as the task runner (other languages use `just`):
+
 ```bash
 mise run dev     # Run TUI
 mise run test    # Run tests

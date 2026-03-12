@@ -179,8 +179,8 @@ just quality           # Full quality gate
 
 Development guidance lives in `skills/`. Read the relevant SKILL.md before starting a task.
 
-- `skills/terraform-project/` -- Architecture, structure
-- `skills/code-formatting/` -- Quality standards
+- `skills/terraform-project-structure/` -- Architecture, structure
+- `skills/linting-standards/` -- Quality standards
 - `skills/self-improvement/` -- Retros, lessons
 
 ## Files to Avoid Modifying
@@ -205,7 +205,7 @@ Development guidance lives in `skills/`. Read the relevant SKILL.md before start
 5. **Clean up** - Clear stashes, prune remote branches
 6. **Hand off** - Provide context for next session
 
-**CRITICAL:** Never stop before pushing. Never say "ready to push when you are" — YOU must push.
+**IMPORTANT:** Always offer to push when work is complete. Don't leave commits sitting locally without asking.
 ```
 
 ## Downstream Consumer Safety (AGENTS.md section)

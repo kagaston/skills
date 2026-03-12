@@ -27,16 +27,12 @@ Use these markers consistently across all languages:
 
 ## Section Dividers
 
-Use these patterns across languages where applicable:
+Use these compact patterns across languages where applicable:
 
 ```python
-# ===================================================================
-# Major Section Name
-# ===================================================================
+# === Major Section Name ===
 
-# -------------------------------------------------------------------
-# Subsection Name
-# -------------------------------------------------------------------
+# --- Subsection Name ---
 ```
 
 ## Python
@@ -55,9 +51,7 @@ Handles user CRUD operations and authentication state.
 Integrates with the legacy auth system until migration completes.
 """
 
-# ===================================================================
-# User Model
-# ===================================================================
+# === User Model ===
 
 class UserService:
     """
@@ -83,7 +77,7 @@ class UserService:
         Required until migration; legacy system is source of truth
         for SSO tokens.
         """
-        # TODO: Remove after migration (Q2-2025)
+        # TODO: Remove after migration (DART-1234)
         # HACK: Legacy API requires snake_case, our model uses camelCase
         payload = self._to_legacy_format(user)
         self._legacy_client.upsert(payload)

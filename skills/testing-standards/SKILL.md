@@ -140,7 +140,7 @@ package user
 
 import (
     "testing"
-    "github.com/stretchr/testify/assert"
+    "github.com/alecthomas/assert/v2"
 )
 
 func TestUserFullName(t *testing.T) {
