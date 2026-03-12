@@ -82,13 +82,28 @@ When modifying a skill, check that it doesn't contradict related skills. Common 
 - Quality gate order (format -> lint -> typecheck -> test)
 - Section dividers (compact `# === Name ===` format)
 
-## SKILL.md Conventions
+## Code Conventions
+
+### SKILL.md Files
 
 - **Frontmatter**: `name` and `description` are required; `argument-hint` is optional
 - **Description**: Acts as the primary trigger mechanism -- make it slightly "pushy" to combat undertriggering
 - **Writing style**: Explain *why* over mandating with ALL-CAPS directives; firm language is fine for hard constraints (security, data loss) when paired with reasoning
 - **Progressive disclosure**: Metadata always loaded -> SKILL.md body on trigger -> references/ on demand
 - **Verification checklist**: End each skill with a checklist of key requirements
+
+### Markdown Standards
+
+- Code blocks always specify language (` ```bash `, ` ```yaml `, ` ```python `, etc.)
+- Tables properly formatted with header row and alignment
+- One H1 per file, H2 for major sections, H3 for subsections
+- Use Mermaid diagrams for architecture and data flow -- not ASCII art
+
+### Git Conventions
+
+- **Commits**: Conventional commits (`type(scope): description`) -- lowercase imperative, no period
+- **Branching**: Trunk-based development with short-lived feature branches (`feat/`, `fix/`, `docs/`, `chore/`)
+- **PRs**: Title follows conventional commit format; include summary, changes, and test plan
 
 ## Files to Avoid Modifying
 
@@ -97,9 +112,15 @@ When modifying a skill, check that it doesn't contradict related skills. Common 
 
 ## Landing the Plane (Session Completion)
 
-When ending a work session:
+When ending a work session, complete all steps:
 
-1. Run `just validate` to ensure all skills are valid
-2. Commit changes with conventional commit format (`type(scope): description`)
-3. Offer to push to remote
-4. Summarize what was changed and any follow-up items
+1. **File issues** for any remaining or follow-up work
+2. **Run quality gates**: `just validate`
+3. **Commit** with conventional commit format (`type(scope): description`)
+4. **Offer to push** to remote:
+   ```bash
+   git push
+   git status  # Should show "up to date with origin"
+   ```
+5. **Clean up** -- clear stashes, prune remote branches
+6. **Hand off** -- summarize what was changed and provide context for the next session
