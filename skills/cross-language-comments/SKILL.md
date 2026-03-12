@@ -25,23 +25,68 @@ Use these markers consistently across all languages:
 | `NOTE:` | Important info | Non-obvious behavior or context |
 | `WARN:` | Caution | Dangerous operation or side effects |
 
-## Python
+## Section Dividers
+
+Use these patterns across languages where applicable:
 
 ```python
-# Single line comment
+# ===================================================================
+# Major Section Name
+# ===================================================================
 
-# Multi-line comments use
-# multiple single-line comments
+# -------------------------------------------------------------------
+# Subsection Name
+# -------------------------------------------------------------------
+```
 
+## Python
+
+**Docstring-first:** Triple-quoted docstrings (`"""`) are the PRIMARY mechanism for all block-level comments and documentation.
+
+- **Use docstrings for:** module docs, class docs, function docs, and longer block explanations
+- **Use single `#` ONLY for:** brief inline annotations, TODO/FIXME/HACK/NOTE markers, section dividers
+- **NEVER** use multi-line `#` comment blocks when a docstring would serve better
+
+```python
 """
-Docstrings are for documentation,
-not comments. Use for modules,
-classes, and functions.
+User service module.
+
+Handles user CRUD operations and authentication state.
+Integrates with the legacy auth system until migration completes.
 """
 
-# TODO: Add retry logic for transient failures (JIRA-123)
-# FIXME: This breaks when user_id is None
-# NOTE: Rate limit requires delay between requests
+# ===================================================================
+# User Model
+# ===================================================================
+
+class UserService:
+    """
+    Manages user lifecycle and session state.
+
+    Thread-safe for concurrent access. Caches active sessions
+    in memory with 15-minute TTL.
+    """
+
+    def get_by_id(self, user_id: int) -> User | None:
+        """
+        Retrieve user by ID.
+
+        Returns None if not found. Does not raise.
+        """
+        # NOTE: Query uses index on id column
+        return self._repo.find(user_id)
+
+    def sync_with_legacy(self, user: User) -> None:
+        """
+        Push user data to legacy auth system.
+
+        Required until migration; legacy system is source of truth
+        for SSO tokens.
+        """
+        # TODO: Remove after migration (Q2-2025)
+        # HACK: Legacy API requires snake_case, our model uses camelCase
+        payload = self._to_legacy_format(user)
+        self._legacy_client.upsert(payload)
 ```
 
 ## Go
@@ -166,25 +211,6 @@ backup_database() {
 }
 ```
 
-## Section Comments
-
-Use section comments to organize large files:
-
-```python
-# =============================================================================
-# Configuration
-# =============================================================================
-
-CONFIG = {...}
-
-# =============================================================================
-# Helper Functions
-# =============================================================================
-
-def helper():
-    pass
-```
-
 ## When NOT to Comment
 
 ```python
@@ -211,6 +237,6 @@ def get_name(self) -> str:
 - [ ] Comments explain *why*, not *what*
 - [ ] TODO/FIXME/HACK markers include context
 - [ ] No commented-out code (deleted, using version control)
-- [ ] Docstrings on public APIs
-- [ ] Section comments for large files
+- [ ] Docstrings on public APIs (Python: docstring-first)
+- [ ] Section dividers for large files
 - [ ] No redundant comments on self-explanatory code

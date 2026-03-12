@@ -208,6 +208,64 @@ describe('UserService', () => {
 });
 ```
 
+## uv Workspace Testing
+
+For monorepos with `app/*/` package layout:
+
+- **Test all packages:** `uv run pytest app/*/tests/ -v --tb=short`
+- **Test single package:** `uv run pytest app/{pkg}/tests/ -v --tb=short`
+
+```just
+test pkg="*":
+    uv run pytest app/{{pkg}}/tests/ -v --tb=short
+
+test-cov:
+    uv run pytest app/*/tests/ --cov=app --cov-report=term-missing --tb=short
+```
+
+## Fixture Recording Pattern
+
+VCR-like pattern: record real API responses, replay for deterministic tests.
+
+### Workflow
+
+1. Write a "live" test that hits the real API and records responses
+2. Save responses as JSON fixtures in `test/support/fixtures/` or `tests/fixtures/`
+3. Write replay tests that use the fixtures (no network needed)
+
+### Tagging Live Tests
+
+Tag live tests so they are excluded from normal runs:
+
+```python
+# pytest
+@pytest.mark.live
+def test_fetch_user_from_api():
+    ...
+```
+
+```bash
+# Run without live tests (default)
+pytest -m "not live"
+
+# Run live tests to refresh fixtures
+pytest -m live
+```
+
+### Rules
+
+- Use constrained inputs for deterministic output
+- Use descriptive fixture names (e.g. `user_123_response.json`)
+- Never hand-edit fixtures; regenerate via live tests
+
+### Language-Specific Examples
+
+| Language | Recording | Replay |
+|----------|-----------|--------|
+| Python | `pytest-recording`, `responses` | Load JSON fixtures in tests |
+| Elixir | ExVCR, `Tesla.Mock` | Cassette files in `test/fixtures/vcr_cassettes/` |
+| Node/TS | `nock`, `msw` | Save/load fixtures in `__fixtures__/` |
+
 ## Test Data Management
 
 ### Factories

@@ -15,79 +15,198 @@ Apply these CI/CD patterns for consistent, reliable automated pipelines.
 └─────────┘   └─────────┘   └─────────┘   └─────────┘
 ```
 
+## Pre-commit Hooks (.hooks/ + pre-commit framework)
+
+Use a custom `.hooks/` directory with dispatcher scripts that invoke the pre-commit framework. Configs live in `development/`.
+
+### Hook scripts
+
+**`.hooks/pre-commit`** (dispatcher):
+```sh
+#!/bin/sh
+echo "[+] Running pre-commit checks"
+for script in .hooks/pre-commit-*; do
+  if [ -f "$script" ]; then
+    $script
+    result=$?
+    if [ $result -ne 0 ]; then
+      exit $result
+    fi
+  fi
+done
+echo "[+] Done with pre-commit checks"
+```
+
+**`.hooks/pre-commit-py`** (Python-specific):
+```sh
+#!/bin/sh
+exec 1>&2
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+if [ -n "$(git diff --cached --name-only --diff-filter=ACM | grep -e '\.py$')" ]; then
+  uv run pre-commit run --config "${REPO_ROOT}/development/.pre-commit-config-py.yaml"
+fi
+```
+
+**`.hooks/pre-commit-yaml`** (YAML-specific):
+```sh
+#!/bin/sh
+exec 1>&2
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+if [ -n "$(git diff --cached --name-only --diff-filter=ACM | grep -e '\.yaml$' -e '\.yml$')" ]; then
+  uv run pre-commit run --config "${REPO_ROOT}/development/.pre-commit-config-yaml.yaml"
+fi
+```
+
+**`.hooks/pre-push`** (dispatcher):
+```sh
+#!/bin/sh
+echo "[+] Running pre-push checks"
+for script in .hooks/pre-push-*; do
+  if [ -f "$script" ]; then
+    $script
+    result=$?
+    if [ $result -ne 0 ]; then
+      exit $result
+    fi
+  fi
+done
+echo "[+] Done with pre-push checks"
+```
+
+**`.hooks/pre-push-py`** (Python tests):
+```sh
+#!/bin/sh
+exec 1>&2
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "${REPO_ROOT}" && uv run pytest tests/ -v --tb=short
+```
+
+### Pre-commit configs in `development/`
+
+**`development/.pre-commit-config-py.yaml`** (ruff, not pylint):
+```yaml
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check
+        language: system
+        types: [python]
+        args: ["--fix"]
+        stages: [pre-commit, manual]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format --check
+        language: system
+        types: [python]
+        stages: [pre-commit, manual]
+```
+
+**`development/.pre-commit-config-yaml.yaml`**:
+```yaml
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-added-large-files
+  - repo: https://github.com/adrienverge/yamllint.git
+    rev: v1.34.0
+    hooks:
+      - id: yamllint
+        args: ["-c", "development/.yamllint.yaml"]
+```
+
+**`development/.yamllint.yaml`** (optional, for yamllint):
+```yaml
+yaml-files:
+  - '*.yaml'
+  - '*.yml'
+rules:
+  document-start: disable
+  line-length:
+    max: 150
+  indentation:
+    spaces: 2
+```
+
+### justfile recipes
+
+```just
+# Set up git hooks to use .hooks/
+setup-hooks:
+    git config core.hooksPath .hooks
+
+# Run all pre-commit checks manually (both configs)
+pre-commit:
+    uv run pre-commit run --all-files --config development/.pre-commit-config-py.yaml
+    uv run pre-commit run --all-files --config development/.pre-commit-config-yaml.yaml
+```
+
+## CI Preflight Checklist
+
+Run all CI checks locally before pushing. Execute in order; stop and fix at each step.
+
+1. **Format** — `just format` or `ruff format . && ruff check --fix .`
+2. **Lint** — `just lint` or `ruff check . && mypy .`
+3. **Typecheck** — `just lint` (if separate) or `mypy .`
+4. **Test** — `just test` or `pytest tests/ -v`
+5. **Push** — only after all pass
+
+```just
+# Run full CI preflight locally
+preflight: format lint test
+```
+
 ## justfile Standards
 
 Every project should have a `justfile` with these standard commands:
 
 ```just
-# Default recipe - show available commands
 default:
     @just --list
 
-# =============================================================================
 # Development
-# =============================================================================
-
-# Install dependencies
 install:
     uv sync
 
-# Run development server
 dev:
     uv run python -m app.cli serve --reload
 
-# =============================================================================
 # Quality
-# =============================================================================
-
-# Format code
 format:
     ruff format .
     ruff check --fix .
 
-# Lint code
 lint:
     ruff check .
     mypy .
 
-# Check all (for CI)
 check: lint
     ruff format --check .
 
-# =============================================================================
 # Testing
-# =============================================================================
-
-# Run all tests
 test:
     pytest tests/ -v
 
-# Run tests with coverage
 test-cov:
     pytest tests/ --cov=app --cov-report=term-missing
 
-# =============================================================================
 # Build & Deploy
-# =============================================================================
-
-# Build package
 build:
     uv build
 
-# Build Docker image
 docker-build:
     docker build -t app:latest .
 
-# =============================================================================
 # Utilities
-# =============================================================================
-
-# Clean build artifacts
 clean:
     rm -rf dist/ build/ .pytest_cache/ .mypy_cache/
     find . -type d -name __pycache__ -exec rm -rf {} +
 
-# Update dependencies
 update:
     uv lock --upgrade
 ```
@@ -201,13 +320,11 @@ jobs:
 
 ### Multi-stage Python Dockerfile
 ```dockerfile
-# Build stage
 FROM python:3.11-slim as builder
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN pip install uv && uv sync --frozen --no-dev
 
-# Runtime stage
 FROM python:3.11-slim
 WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
@@ -221,7 +338,6 @@ CMD ["python", "-m", "app.cli", "serve"]
 
 ### Multi-stage Go Dockerfile
 ```dockerfile
-# Build stage
 FROM golang:1.21-alpine as builder
 WORKDIR /app
 COPY go.mod go.sum ./
@@ -229,7 +345,6 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 go build -o /app/server ./cmd/server
 
-# Runtime stage
 FROM alpine:3.19
 RUN apk --no-cache add ca-certificates
 WORKDIR /app
@@ -238,24 +353,6 @@ RUN adduser -D appuser
 USER appuser
 EXPOSE 8080
 CMD ["./server"]
-```
-
-## Pre-commit Hooks
-
-### lefthook.yml
-```yaml
-pre-commit:
-  parallel: true
-  commands:
-    lint-python:
-      glob: "*.py"
-      run: ruff check {staged_files}
-    format-python:
-      glob: "*.py"
-      run: ruff format --check {staged_files}
-    lint-go:
-      glob: "*.go"
-      run: golangci-lint run {staged_files}
 ```
 
 ## Release Management
@@ -289,8 +386,10 @@ MAJOR.MINOR.PATCH
 ## Verification Checklist
 
 - [ ] justfile has standard commands (install, dev, format, lint, test, build)
+- [ ] `.hooks/` scripts and `development/` pre-commit configs in place
+- [ ] `just setup-hooks` and `just pre-commit` work
+- [ ] CI preflight sequence (format → lint → typecheck → test) documented
 - [ ] GitHub Actions workflow exists
 - [ ] Lint job runs before test job
 - [ ] Coverage reporting configured
 - [ ] Dockerfile uses multi-stage build
-- [ ] Pre-commit hooks configured

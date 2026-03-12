@@ -21,13 +21,13 @@ This allows them to be automatically discovered and loaded by Goose.
 | `linting-standards` | ruff, golangci-lint, biome, tflint |
 | `testing-standards` | pytest, Go testing, vitest patterns |
 | `ci-cd-patterns` | justfile, GitHub Actions, Docker |
+| `typescript-coding-style` | TypeScript/React standards |
 
 ## Skills to Create
 
 Based on repository reviews:
 
 - [ ] `go-coding-style` - Go coding standards
-- [ ] `typescript-coding-style` - TypeScript/JavaScript standards
 - [ ] `elixir-coding-style` - Elixir/OTP patterns
 - [ ] `terraform-coding-style` - Terraform/HCL standards
 - [ ] `shell-coding-style` - Shell/Bash standards
