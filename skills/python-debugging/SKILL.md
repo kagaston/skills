@@ -25,7 +25,7 @@ When encountering an issue, ask:
 
 ### Lint Errors
 
-- **Diagnosis**: `ruff check .` (or `pylint`)
+- **Diagnosis**: `ruff check .`
 - **Common**: unused imports, naming violations, line too long, missing docstrings
 - **Fix**: read error, fix specific issue, re-run lint
 

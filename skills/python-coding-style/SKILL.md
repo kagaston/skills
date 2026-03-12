@@ -285,9 +285,9 @@ select = ["E", "F", "I", "N", "UP", "B", "C4", "PTH", "RUF"]
 [tool.ruff.format]
 quote-style = "double"
 
-[tool.mypy]
-python_version = "3.11"
-strict = true
+[tool.basedpyright]
+pythonVersion = "3.11"
+typeCheckingMode = "standard"
 ```
 
 ## Verification Checklist

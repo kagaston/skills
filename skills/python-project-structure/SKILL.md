@@ -1,6 +1,7 @@
 ---
 name: python-project-structure
 description: Standard directory structure and configuration for Python projects based on Block's copier template
+argument-hint: "[project-name]"
 ---
 
 # Python Project Structure
@@ -31,79 +32,6 @@ project-name/
 
 ## Required Files
 
-### pyproject.toml
-
-Use `uv` for dependency management with this structure:
-
-```toml
-[project]
-name = "project-name"
-version = "0.1.0"
-readme = "README.md"
-requires-python = ">=3.13"
-authors = [{ name = "Author Name", email = "author@example.com" }]
-dependencies = []
-
-[dependency-groups]
-dev = []
-
-# For libraries (publishable packages)
-[build-system]
-requires = ["uv_build>=0.8.22,<0.9.0"]
-build-backend = "uv_build"
-
-# For applications (not published)
-# [tool.uv]
-# package = false
-
-# --- Ruff ---
-[tool.ruff]
-target-version = "py313"
-src = ["src", "tests"]
-line-length = 120
-
-[tool.ruff.lint]
-select = ["B", "C4", "C90", "D", "E", "F", "I", "PLR", "PT", "RUF", "S", "SIM", "T20", "UP"]
-fixable = ["ALL"]
-ignore = ["D107", "D415", "D212", "D100", "D104"]
-exclude = ["tests/**"]
-
-[tool.ruff.lint.mccabe]
-max-complexity = 10
-
-[tool.ruff.lint.pylint]
-max-args = 5
-max-branches = 12
-max-returns = 6
-max-statements = 50
-
-[tool.ruff.lint.pydocstyle]
-convention = "google"
-
-[tool.ruff.lint.per-file-ignores]
-"**/tests/**/*.py" = ["D", "S101", "T20"]
-"noxfile.py" = ["D", "S101", "T20"]
-
-[tool.ruff.format]
-quote-style = "double"
-docstring-code-format = true
-
-# --- BasedPyright ---
-[tool.basedpyright]
-include = ["src"]
-typeCheckingMode = "strict"
-failOnWarnings = false
-
-# --- Pytest ---
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-addopts = ["-ra", "--strict-markers", "--strict-config", "--cov=src/module_name", "--cov-report=term-missing", "--cov-fail-under=80"]
-filterwarnings = ["error"]
-
-[tool.coverage.run]
-omit = ["**/__init__.py"]
-```
-
 ### justfile
 
 Standard commands every project should have:
@@ -129,73 +57,14 @@ check:
     uv run nox
 ```
 
-### noxfile.py
-
-CI session definitions:
-
-```python
-"""Nox sessions for CI validation."""
-import nox
-
-nox.options.default_venv_backend = "uv"
-
-PYTHON_VERSION = "3.13"
-PYPROJECT = nox.project.load_toml("pyproject.toml")
-DEV_DEPS = nox.project.dependency_groups(PYPROJECT, "dev")
-
-@nox.session(python=PYTHON_VERSION)
-def format(session: nox.Session) -> None:
-    """Check code formatting with ruff (no fixes)."""
-    session.install(*DEV_DEPS)
-    session.run("ruff", "format", "--check", "src/", "tests/")
-
-@nox.session(python=PYTHON_VERSION)
-def lint(session: nox.Session) -> None:
-    """Lint the codebase using ruff (no fixes)."""
-    session.install(*DEV_DEPS)
-    session.run("ruff", "check", "src/", "tests/")
-
-@nox.session(python=PYTHON_VERSION)
-def typecheck(session: nox.Session) -> None:
-    """Type check using basedpyright."""
-    session.install(*DEV_DEPS)
-    session.install(".")
-    session.run("basedpyright", "src/")
-
-@nox.session(python=PYTHON_VERSION)
-def tests(session: nox.Session) -> None:
-    """Run the test suite."""
-    session.install(*DEV_DEPS)
-    session.install(".")
-    session.run("pytest", "tests/", *session.posargs)
-```
-
-### CONTRIBUTING.md
-
-```markdown
-# Contributing to project-name
-
-### Setup
-\`\`\`bash
-uv sync
-\`\`\`
-
-### Commands
-- `just format` - Format code
-- `just lint` - Lint code
-- `just test` - Run tests
-- `just typecheck` - Type check
-- `just check` - Run all CI checks
-
-### Adding dependencies
-- `uv add <package>` - Add a runtime dependency
-- `uv add --dev <package>` - Add a dev dependency
-```
+See [pyproject-template.md](references/pyproject-template.md) for the full `pyproject.toml`, `noxfile.py`, and `CONTRIBUTING.md` templates.
 
 ## Key Patterns
 
 ### 1. Use src/ Layout
+
 Put your package under `src/` to avoid import issues:
+
 ```
 src/
 └── my_package/
@@ -204,17 +73,21 @@ src/
 ```
 
 ### 2. Project Types
+
 - **Library**: Publishable package with `[build-system]`
 - **Application**: Standalone service with `[tool.uv] package = false`
 
 ### 3. Dev Dependencies
+
 Use dependency groups, not extras:
+
 ```toml
 [dependency-groups]
 dev = ["ruff", "basedpyright", "pytest", "pytest-cov", "nox"]
 ```
 
 ### 4. Naming Conventions
+
 - **Project name**: lowercase with dashes (`my-project`)
 - **Module name**: lowercase with underscores (`my_project`)
 
@@ -243,7 +116,6 @@ project-name/
 │       ├── tests/
 │       └── pyproject.toml
 ├── development/
-│   ├── .pylintrc              # or ruff config in root pyproject.toml
 │   ├── .yamllint.yaml
 │   ├── .pre-commit-config-py.yaml
 │   └── .pre-commit-config-yaml.yaml
@@ -253,142 +125,14 @@ project-name/
 └── uv.lock
 ```
 
-### Root pyproject.toml (Workspace)
-
-```toml
-[project]
-name = "project-name"
-version = "0.1.0"
-requires-python = ">=3.12"
-dependencies = [
-    "my-settings",
-    "my-logger",
-    "my-api",
-]
-
-[dependency-groups]
-dev = [
-    "pytest>=9.0",
-    "pytest-asyncio>=1.0",
-    "pytest-cov>=6.0",
-    "ruff>=0.9",
-    "yamllint>=1.0",
-    "pre-commit>=4.0",
-    "pyyaml>=6.0",
-]
-
-[tool.pytest.ini_options]
-asyncio_mode = "auto"
-
-[tool.uv.workspace]
-members = ["app/*"]
-exclude = ["app/__pycache__", "app/.pytest_cache"]
-
-[tool.uv.sources]
-my-settings = { workspace = true }
-my-logger = { workspace = true }
-my-api = { workspace = true }
-```
-
-### Workspace Member pyproject.toml (e.g. app/settings/)
-
-```toml
-[project]
-name = "my-settings"
-version = "0.1.0"
-requires-python = ">=3.12"
-dependencies = []
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/settings"]
-```
-
-Members with workspace dependencies add `[tool.uv.sources]`:
-
-```toml
-[project]
-name = "my-api"
-version = "0.1.0"
-requires-python = ">=3.12"
-dependencies = [
-    "my-settings",
-    "my-logger",
-    "fastapi",
-]
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/api"]
-
-[tool.uv.sources]
-my-settings = { workspace = true }
-my-logger = { workspace = true }
-```
-
-### Workspace justfile
-
-```just
-default:
-    @just --list
-
-sync:
-    uv sync
-
-test pkg="*":
-    uv run pytest app/{{pkg}}/tests/ -v --tb=short
-
-test-cov:
-    uv run pytest app/*/tests/ --cov=app --cov-report=term-missing --tb=short
-
-lint:
-    uv run ruff check app/*/src/ app/*/tests/
-    uv run yamllint -c development/.yamllint.yaml agents/ playbooks/
-
-fmt:
-    uv run ruff format app/*/src/ app/*/tests/
-
-pre-commit:
-    uv run pre-commit run --all-files --config development/.pre-commit-config-py.yaml
-    uv run pre-commit run --all-files --config development/.pre-commit-config-yaml.yaml
-
-setup-hooks:
-    git config core.hooksPath .hooks
-```
-
-For pylint instead of ruff:
-
-```just
-lint:
-    uv run pylint -rn -sn --rcfile development/.pylintrc app/*/src/ development/tests/
-    uv run yamllint -c development/.yamllint.yaml agents/ playbooks/
-```
-
-### development/.yamllint.yaml
-
-```yaml
-extends: default
-
-rules:
-  line-length:
-    max: 120
-  truthy:
-    allowed-values: ["true", "false", "yes", "no"]
-  comments:
-    min-spaces-from-content: 1
-```
+See [workspace-template.md](references/workspace-template.md) for the full root and member `pyproject.toml` templates, workspace justfile, and yamllint config.
 
 ---
 
 ## Verification Checklist
 
 ### Single-Package (Default)
+
 - [ ] Uses `src/` layout for package code
 - [ ] `pyproject.toml` has ruff, basedpyright, pytest config
 - [ ] `justfile` has format, lint, test, typecheck, check commands
@@ -398,9 +142,15 @@ rules:
 - [ ] Line length is 120 (Block standard)
 
 ### uv Workspace Monorepo
+
 - [ ] Root `pyproject.toml` has `[tool.uv.workspace]` with `members = ["app/*"]`
 - [ ] Each `app/*` member has `src/`, `tests/`, and `pyproject.toml`
 - [ ] `[tool.uv.sources]` maps workspace packages with `{ workspace = true }`
-- [ ] `development/` contains shared config (`.pylintrc` or ruff, `.yamllint.yaml`, pre-commit configs)
+- [ ] `development/` contains shared config (`.yamllint.yaml`, pre-commit configs)
 - [ ] `justfile` has test, lint, fmt, sync, setup-hooks
 - [ ] `.hooks/` used for git hooks (`git config core.hooksPath .hooks`)
+
+## Reference Files
+
+- [pyproject-template.md](references/pyproject-template.md) -- Full pyproject.toml, noxfile.py, and CONTRIBUTING.md for single-package projects
+- [workspace-template.md](references/workspace-template.md) -- Root and member pyproject.toml, justfile, and yamllint config for monorepos

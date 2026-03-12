@@ -9,13 +9,13 @@ Apply these linting standards to maintain code quality. Linting should be automa
 
 ## Universal Principles
 
-1. **Automate Everything** - Linting should run automatically
-2. **Fail Fast** - Run linters early in CI pipeline
-3. **Fix, Don't Ignore** - Address issues, don't disable rules
+1. **Automate Everything** -- linting should run automatically
+2. **Fail Fast** -- run linters early in CI pipeline
+3. **Fix, Don't Ignore** -- address issues, don't disable rules
 
 ## Multi-Language Quality Gate
 
-All must pass before commit: **format → lint → typecheck → test**
+All must pass before commit: **format -> lint -> typecheck -> test**
 
 | Step | Purpose |
 |------|---------|
@@ -26,65 +26,17 @@ All must pass before commit: **format → lint → typecheck → test**
 
 ## Python (ruff + basedpyright)
 
-### Tools
 - **Linter/Formatter**: `ruff` (replaces pylint, black, isort, flake8)
 - **Type Checker**: `basedpyright` (stricter pyright fork)
 
 ### Execution Order
-1. `ruff format .` — formatting (quotes, line length)
-2. `ruff check --fix .` — linting + isort via `I` rule, auto-fixes
-3. `basedpyright src/` — type checking
 
-### pyproject.toml Configuration
-
-```toml
-[tool.ruff]
-target-version = "py313"
-src = ["src", "tests"]
-line-length = 120
-
-[tool.ruff.lint]
-select = [
-    "B",      # flake8-bugbear
-    "C4",     # flake8-comprehensions
-    "C90",    # mccabe complexity
-    "D",      # pydocstyle
-    "E",      # pycodestyle errors
-    "F",      # Pyflakes
-    "I",      # isort
-    "PLR",    # Pylint refactor
-    "PT",     # flake8-pytest-style
-    "RUF",    # Ruff-specific
-    "S",      # flake8-bandit (security)
-    "SIM",    # flake8-simplify
-    "T20",    # flake8-print
-    "UP",     # pyupgrade
-]
-fixable = ["ALL"]
-ignore = ["D107", "D415", "D212", "D100", "D104"]
-exclude = ["tests/**"]
-
-[tool.ruff.lint.mccabe]
-max-complexity = 10
-
-[tool.ruff.lint.pydocstyle]
-convention = "google"
-
-[tool.ruff.lint.per-file-ignores]
-"**/tests/**/*.py" = ["D", "S101", "T20"]
-"noxfile.py" = ["D", "S101", "T20"]
-
-[tool.ruff.format]
-quote-style = "double"
-docstring-code-format = true
-
-[tool.basedpyright]
-include = ["src"]
-typeCheckingMode = "strict"
-failOnWarnings = false
-```
+1. `ruff format .` -- formatting (quotes, line length)
+2. `ruff check --fix .` -- linting + isort via `I` rule, auto-fixes
+3. `basedpyright src/` -- type checking
 
 ### justfile Commands
+
 ```just
 format:
     uv run ruff format .
@@ -99,56 +51,10 @@ check:
     uv run nox
 ```
 
-### noxfile.py Sessions
-```python
-@nox.session(python=PYTHON_VERSION)
-def format(session: nox.Session) -> None:
-    """Check code formatting with ruff (no fixes)."""
-    session.install(*DEV_DEPS)
-    session.run("ruff", "format", "--check", "src/", "tests/")
-
-@nox.session(python=PYTHON_VERSION)
-def lint(session: nox.Session) -> None:
-    """Lint the codebase using ruff (no fixes)."""
-    session.install(*DEV_DEPS)
-    session.run("ruff", "check", "src/", "tests/")
-
-@nox.session(python=PYTHON_VERSION)
-def typecheck(session: nox.Session) -> None:
-    """Type check using basedpyright."""
-    session.install(*DEV_DEPS)
-    session.install(".")
-    session.run("basedpyright", "src/")
-```
+See [linter-configs.md](references/linter-configs.md) for the full `pyproject.toml` config, basedpyright setup, and noxfile sessions.
 
 ## Go (golangci-lint)
 
-### .golangci.yml Configuration
-```yaml
-run:
-  timeout: 5m
-
-linters:
-  enable:
-    - errcheck
-    - gosimple
-    - govet
-    - ineffassign
-    - staticcheck
-    - unused
-    - gofmt
-    - goimports
-    - misspell
-    - gocritic
-    - revive
-    - gosec
-
-linters-settings:
-  goimports:
-    local-prefixes: github.com/yourorg
-```
-
-### justfile Commands
 ```just
 format:
     gofmt -s -w .
@@ -158,58 +64,14 @@ lint:
     golangci-lint run ./...
 ```
 
+See [linter-configs.md](references/linter-configs.md) for the full `.golangci.yml` configuration.
+
 ## TypeScript/JavaScript (biome)
 
-### biome.json Configuration
-```json
-{
-  "$schema": "https://biomejs.dev/schemas/1.5.0/schema.json",
-  "organizeImports": { "enabled": true },
-  "linter": {
-    "enabled": true,
-    "rules": {
-      "recommended": true,
-      "correctness": {
-        "noUnusedVariables": "error",
-        "noUnusedImports": "error"
-      },
-      "style": {
-        "useConst": "error"
-      }
-    }
-  },
-  "formatter": {
-    "indentStyle": "space",
-    "indentWidth": 2,
-    "lineWidth": 100
-  }
-}
-```
+See [linter-configs.md](references/linter-configs.md) for the full `biome.json` configuration.
 
 ## Terraform (tflint + tfsec)
 
-### .tflint.hcl Configuration
-```hcl
-config {
-  module = true
-}
-
-plugin "terraform" {
-  enabled = true
-  preset  = "recommended"
-}
-
-rule "terraform_naming_convention" {
-  enabled = true
-  format  = "snake_case"
-}
-
-rule "terraform_documented_variables" {
-  enabled = true
-}
-```
-
-### justfile Commands
 ```just
 format:
     terraform fmt -recursive
@@ -219,9 +81,10 @@ lint:
     tfsec .
 ```
 
+See [linter-configs.md](references/linter-configs.md) for the full `.tflint.hcl` configuration.
+
 ## Shell/Bash (shellcheck + shfmt)
 
-### justfile Commands
 ```just
 lint-shell:
     shellcheck scripts/*.sh
@@ -232,28 +95,17 @@ format-shell:
 
 ## YAML (yamllint)
 
-### .yamllint Configuration
-```yaml
-rules:
-  document-start: disable
-  line-length:
-    max: 120
-  indentation:
-    spaces: 2
-  comments:
-    min-spaces-from-content: 1
-```
-
-### justfile Commands
 ```just
 lint-yaml:
     yamllint .
 ```
 
+See [linter-configs.md](references/linter-configs.md) for the `.yamllint` configuration.
+
 ## Verification Checklist
 
 - [ ] Python: ruff as single tool (replaces pylint, black, isort, flake8)
-- [ ] Python: Execution order — format → lint → typecheck
+- [ ] Python: Execution order -- format -> lint -> typecheck
 - [ ] Python: basedpyright in strict mode
 - [ ] Python: Line length 120
 - [ ] Go: golangci-lint with gosec enabled
@@ -261,6 +113,10 @@ lint-yaml:
 - [ ] Terraform: tflint + tfsec configured
 - [ ] Shell: shellcheck + shfmt
 - [ ] YAML: yamllint configured
-- [ ] Quality gate: format → lint → typecheck → test
+- [ ] Quality gate: format -> lint -> typecheck -> test
 - [ ] `just lint` and `just format` commands work
 - [ ] CI runs `just check` (nox for Python)
+
+## Reference Files
+
+- [linter-configs.md](references/linter-configs.md) -- Full configuration files for all languages (pyproject.toml, .golangci.yml, biome.json, .tflint.hcl, .yamllint)

@@ -72,7 +72,7 @@ Before ending a session:
 1. All changes are committed with descriptive messages
 2. All lint and tests pass
 3. Working directory is clean (`git status` shows nothing)
-4. Push changes to remote (`git push`)
+4. Offer to push changes to remote (`git push`) -- push when user confirms
 5. Summarize what was done and any follow-up items
 
 ## Agent Communication Style
@@ -98,4 +98,4 @@ Before ending a session:
 - [ ] Tests pass after each change
 - [ ] Commit message is descriptive
 - [ ] Working directory is clean
-- [ ] Changes pushed to remote
+- [ ] Changes pushed to remote (when user confirms)
