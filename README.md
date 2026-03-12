@@ -1,63 +1,112 @@
 # Skills Library
 
-## Official Location
+Centralized skills for AI coding agents (Cursor and Goose). Source of truth for coding standards, workflows, and conventions harvested from 30+ projects.
 
-Skills are stored in the official Goose skills location:
+## Quick Start
+
+```bash
+# Deploy all skills to Goose and Cursor
+just deploy
+
+# List all available skills
+just list
+
+# Validate all SKILL.md files
+just validate
 ```
-~/.config/goose/skills/
-```
 
-This allows them to be automatically discovered and loaded by Goose.
+## Skills Catalog
 
-## Current Skills
+### Python
 
 | Skill | Description |
 |-------|-------------|
-| `python-project-structure` | Standard Python project layout |
-| `terraform-project-structure` | Standard Terraform project layout |
-| `python-coding-style` | Python naming, typing, docstrings |
-| `cross-language-comments` | TODO/FIXME/NOTE markers |
-| `documentation-standards` | README, CONTRIBUTING, AGENTS.md |
-| `linting-standards` | ruff, golangci-lint, biome, tflint |
-| `testing-standards` | pytest, Go testing, vitest patterns |
-| `ci-cd-patterns` | justfile, GitHub Actions, Docker |
-| `typescript-coding-style` | TypeScript/React standards |
+| `python-project-structure` | Standard directory structure, `src/` layout, uv workspace monorepo pattern |
+| `python-coding-style` | Naming, typing, docstring-first comments, error handling, line-length 120 |
+| `python-api-structure` | FastAPI app factory, config, routers, testing patterns |
+| `python-precommit-setup` | `.hooks/` + pre-commit framework, ruff hooks, yamllint, quality gates |
+| `python-debugging` | Root cause analysis, common error patterns, systematic fix protocol |
 
-## Skills to Create
+### Other Languages
 
-Based on repository reviews:
+| Skill | Description |
+|-------|-------------|
+| `go-coding-style` | Error handling (alecthomas/errors), optional values, testing, golangci-lint |
+| `typescript-coding-style` | React + Vite + Tailwind + shadcn UI, biome, component patterns |
+| `elixir-coding-style` | GenServer patterns, `@moduledoc`/`@doc`, cyclic dep detection, codegen sync |
+| `terraform-coding-style` | Plan-first workflow, quality gates, YAML-to-TF, naming, debugging |
+| `shell-coding-style` | `set -euo pipefail`, shellcheck, shfmt, variable safety |
 
-- [ ] `go-coding-style` - Go coding standards
-- [ ] `elixir-coding-style` - Elixir/OTP patterns
-- [ ] `terraform-coding-style` - Terraform/HCL standards
-- [ ] `shell-coding-style` - Shell/Bash standards
+### Cross-Language
 
-## Viewing Skills
+| Skill | Description |
+|-------|-------------|
+| `linting-standards` | ruff (Python), golangci-lint (Go), biome (TS), tflint (TF), shellcheck, yamllint |
+| `testing-standards` | pytest, Go testing, vitest, fixture recording, uv workspace patterns |
+| `ci-cd-patterns` | justfile, `.hooks/` pre-commit, GitHub Actions, Docker, CI preflight |
+| `cross-language-comments` | Docstring-first (Python), section dividers, TODO/FIXME markers |
+| `documentation-standards` | README, CONTRIBUTING, AGENTS.md, `.cursor/rules/`, skills directory |
+| `git-conventions` | Conventional commits, branch naming, breaking change notation |
+| `terraform-project-structure` | `global/`, `tfvars/`, providers, variables, naming conventions |
 
-```bash
-# List all skills
-ls ~/.config/goose/skills/
+### Agent Behavior
 
-# View a skill
-cat ~/.config/goose/skills/python-coding-style/SKILL.md
+| Skill | Description |
+|-------|-------------|
+| `agent-workflow` | Core principles, plan-first methodology, quality gates, session completion |
+| `self-improvement` | Retrospectives, lesson extraction, pattern detection, rule evolution |
+| `subagent-patterns` | When to delegate, parallel exploration, available subagent types |
+
+## Source Mapping
+
+Skills were harvested from conventions across these projects:
+
+| Source Project | What was harvested |
+|---------------|-------------------|
+| dart-ops-bot-orchestration | `.hooks/` pre-commit setup, pylint/yamllint configs, justfile recipes |
+| dart-mas | ruff config, uv workspace monorepo pattern, section divider comments |
+| rootly-py | 13 `.cursor/rules` (workflow, quality gates, self-improvement, debugging, subagents) |
+| tf-rootly | 6 SKILL.md files (Terraform workflow/tooling/fixing), CLAUDE.md |
+| opal | 9 Claude skills (git, CI preflight, Elixir cyclic deps, codegen, docs) |
+| builderbot | AGENTS.md (Go error handling, React/TS component patterns) |
+| secure-drives | AGENTS.md (FastAPI patterns, "Landing the Plane" workflow) |
+| csirt-ops | `.cursor/rules` (uv workspace project structure) |
+| tf-dart-metrics | AGENTS.md (schema patterns, field addition workflows) |
+
+## Deployment
+
+Skills are deployed via symlinks to both Goose and Cursor:
+
+```
+~/.config/goose/skills/{skill-name}/ -> skills/{skill-name}/
+~/.cursor/skills/{skill-name}/       -> skills/{skill-name}/
 ```
 
-## Creating New Skills
+Run `just deploy` to create/update all symlinks.
 
-1. Create a directory in `~/.config/goose/skills/{skill-name}/`
-2. Create a `SKILL.md` file with frontmatter:
+## Adding a New Skill
+
+1. Create `skills/{skill-name}/SKILL.md` with frontmatter:
 
 ```markdown
 ---
 name: skill-name
-description: Brief description of what this skill covers
+description: Brief description of what this skill covers and when to use it.
 ---
 
 # Skill Title
 
-Instructions and content...
+Content here...
 ```
 
-## Reference
+2. Run `just validate` to check frontmatter
+3. Run `just deploy` to install
+4. Run `just list` to verify
 
-See [Goose Skills Documentation](https://block.github.io/goose/docs/guides/context-engineering/using-skills)
+## Key Conventions
+
+- **Python linting**: ruff (format -> check -> basedpyright), line-length 120
+- **Pre-commit**: Custom `.hooks/` + pre-commit framework
+- **Comments**: Docstring-first for Python blocks, `#` for inline only
+- **Commits**: Conventional commits (`type(scope): description`)
+- **Workflow**: Plan-first (research -> plan -> implement -> review)
