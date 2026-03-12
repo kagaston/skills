@@ -102,6 +102,49 @@ lint-yaml:
 
 See [linter-configs.md](references/linter-configs.md) for the `.yamllint` configuration.
 
+## Docker (hadolint)
+
+- **Linter**: `hadolint` (Dockerfile best practices + embedded ShellCheck)
+
+```just
+lint-docker:
+    hadolint Dockerfile
+```
+
+### .hadolint.yaml
+
+```yaml
+ignored:
+  - DL3008    # pin versions in apt-get (sometimes impractical)
+
+trustedRegistries:
+  - docker.io
+  - ghcr.io
+
+failure-threshold: warning
+strict-labels: true
+```
+
+### Key Rules
+
+| Rule | What it catches |
+|------|----------------|
+| DL3007 | Using `:latest` tag |
+| DL3008 | Not pinning apt package versions |
+| DL3009 | Not cleaning apt cache after install |
+| DL3025 | Using shell form for CMD (should be JSON) |
+| DL3015 | Not using `--no-install-recommends` with apt-get |
+| DL4006 | Not setting `SHELL` with pipefail for pipe commands |
+
+### CI Integration
+
+```yaml
+- name: Lint Dockerfile
+  uses: hadolint/hadolint-action@v3.1.0
+  with:
+    dockerfile: Dockerfile
+```
+
 ## Verification Checklist
 
 - [ ] Python: ruff as single tool (replaces pylint, black, isort, flake8)
@@ -112,6 +155,7 @@ See [linter-configs.md](references/linter-configs.md) for the `.yamllint` config
 - [ ] TypeScript: biome configured
 - [ ] Terraform: tflint + tfsec configured
 - [ ] Shell: shellcheck + shfmt
+- [ ] Docker: hadolint configured (with `.hadolint.yaml` if needed)
 - [ ] YAML: yamllint configured
 - [ ] Quality gate: format -> lint -> typecheck -> test
 - [ ] `just lint` and `just format` commands work
