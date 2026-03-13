@@ -58,6 +58,30 @@ project-name/
 └── README.md
 ```
 
+## Dual Deployment Project (Compose + K8s)
+
+For projects that support both Docker Compose (local dev) and Kubernetes (cluster deployment):
+
+```
+project-name/
+├── docker-compose.yml           # Local development stack
+├── k8s/
+│   ├── namespace.yaml           # K8s namespace isolation
+│   ├── configmap.yaml           # Shared configuration
+│   ├── app-deployment.yaml      # App Deployment + Service
+│   └── worker-deployment.yaml   # Worker Deployment
+├── scripts/
+│   └── setup.sh                 # One-command local bootstrap
+├── justfile                     # up/down + k8s-apply/k8s-delete
+├── .hadolint.yaml               # Dockerfile linting config
+├── .yamllint                    # YAML linting config
+├── AGENTS.md
+├── CONTRIBUTING.md
+└── README.md
+```
+
+The compose file and K8s manifests should mirror the same topology -- same services, same ports, same environment variables. Use ConfigMaps in K8s to hold the same values that `environment:` holds in compose.
+
 ## Adding Docker to an Existing Project
 
 When a project already has source code and needs Docker support:
@@ -183,13 +207,115 @@ volumes:
   pgdata:
 ```
 
+### Pre-Built Image Stack
+
+When services use published images (no local Dockerfiles):
+
+```yaml
+services:
+  app:
+    image: org/app:1.2.3
+    container_name: my-app
+    hostname: app
+    ports:
+      - "8000:8000"
+    networks:
+      - app-network
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./config:/app/config:ro
+      - ./data:/app/data
+
+  worker:
+    image: org/worker:1.2.3
+    hostname: worker
+    deploy:
+      replicas: 2
+    ports:
+      - "9000"
+    networks:
+      - app-network
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      MASTER_HOST: app
+      WORKER_MEMORY: 1G
+
+  db:
+    image: postgres:16-alpine
+    networks:
+      - app-network
+    restart: unless-stopped
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  pgdata:
+```
+
 ### Key Patterns
 
-- **`depends_on` with `condition: service_healthy`** -- wait for database readiness, not just container start
+- **`depends_on` with conditions** -- `service_healthy` waits for health, `service_started` waits for container start, `service_completed_successfully` waits for one-time jobs (migrations)
 - **Named volumes** -- persist data across container restarts
 - **`env_file`** -- load environment from `.env` (gitignored)
-- **`target: runtime`** -- use a specific multi-stage build target
-- **Volume mounts** -- bind-mount source code for live reload in dev
+- **`target: runtime`** -- use a specific multi-stage build target for `build:`
+- **Bind mounts** -- `./src:/app/src` for live reload in dev, `:ro` for read-only config
+- **`restart: unless-stopped`** -- auto-restart on failure but not after manual stop
+- **`deploy.replicas`** -- run multiple instances of stateless workers
+- **`container_name` + `hostname`** -- predictable names for primary services; omit for replicated workers
+- **Explicit networks** -- isolate service communication with named bridge networks
+- **`start_period`** in healthchecks -- grace period before health failures count
+
+### Healthcheck Patterns
+
+| Service | Test command |
+|---------|-------------|
+| PostgreSQL | `pg_isready -U postgres` |
+| MySQL | `mysqladmin ping -h localhost` |
+| Redis | `redis-cli ping` |
+| HTTP API | `curl -f http://localhost:8000/health \|\| exit 1` |
+| Spark Master | `curl -f http://localhost:8080/ \|\| exit 1` |
+
+### Profiles
+
+Selectively enable optional services (monitoring, debugging):
+
+```yaml
+services:
+  api:
+    # always starts (no profile)
+
+  grafana:
+    image: grafana/grafana:latest
+    profiles: [monitoring]
+    ports:
+      - "3000:3000"
+
+  debug-tools:
+    image: nicolaka/netshoot
+    profiles: [debug]
+```
+
+```bash
+docker compose up -d                          # core services only
+docker compose --profile monitoring up -d     # core + grafana
+docker compose --profile debug up -d          # core + debug tools
+```
 
 ### Override File
 
@@ -203,6 +329,34 @@ services:
     environment:
       - DEBUG=true
       - LOG_LEVEL=DEBUG
+```
+
+### Production Layering
+
+Use multiple compose files to layer environments:
+
+```bash
+# Development (default)
+docker compose up -d
+
+# Production (overlay)
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+```
+
+```yaml
+# docker-compose.prod.yml
+services:
+  api:
+    restart: always
+    deploy:
+      replicas: 3
+    environment:
+      - LOG_LEVEL=WARNING
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 ```
 
 ## .env.example
@@ -225,24 +379,51 @@ SECRET_KEY=
 
 ## Build Scripts
 
-### bootstrap.sh Pattern
+### setup.sh Pattern (Environment Bootstrap)
 
-A single provisioning script that runs in both root and non-root phases of a multi-stage build:
+A single script that installs tools, starts the container runtime, and brings up the stack. Useful for projects where contributors need a one-command setup:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Full project bootstrap: install tools, start runtime, bring up services.
+# Usage: ./scripts/setup.sh
+
+echo "==> Checking prerequisites..."
+command -v brew >/dev/null || { echo "Install Homebrew first: https://brew.sh"; exit 1; }
+
+echo "==> Installing tools..."
+brew install --quiet just docker docker-compose
+
+echo "==> Creating local directories..."
+mkdir -p data logs
+
+echo "==> Starting services..."
+docker compose up -d
+
+echo ""
+echo "Done! Services are starting up."
+echo "  App:  http://localhost:8000"
+echo "  Docs: http://localhost:8000/docs"
+```
+
+### bootstrap.sh Pattern (Dockerfile Provisioning)
+
+A single script that runs in both root and non-root phases of a multi-stage Docker build:
 
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
 
 if [[ $EUID == 0 ]]; then
-    # Root phase: system packages, user creation, global deps
     apt-get update && apt-get install -y --no-install-recommends curl
     rm -rf /var/lib/apt/lists/*
 
     groupadd --gid 1000 app
     useradd --uid 1000 --gid app --shell /bin/bash --create-home app
 else
-    # User phase: application-level setup
-    pip install --no-cache-dir -r requirements.txt
+    pip install uv && uv sync --frozen --no-dev
 fi
 ```
 
@@ -392,5 +573,10 @@ build/
 - [ ] .env.example documents required environment variables
 - [ ] Build scripts use `set -euo pipefail`
 - [ ] Tagging strategy includes both version and latest
-- [ ] docker-compose uses health checks for service dependencies
+- [ ] docker-compose uses healthchecks with `start_period` for service dependencies
+- [ ] `depends_on` uses `condition: service_healthy` (not bare `depends_on`)
+- [ ] Services use `restart: unless-stopped` or `restart: always`
+- [ ] Explicit named networks for service isolation
+- [ ] K8s manifests mirror compose topology (if dual deployment)
+- [ ] YAML files linted with yamllint
 - [ ] No secrets committed (`.env` is gitignored, `.env.example` has no values)
