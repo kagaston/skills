@@ -31,6 +31,7 @@ packages = ["src/mcp_server"]
 
 [tool.ruff]
 target-version = "py312"
+src = ["app/*/src", "app/*/tests"]
 line-length = 120
 
 [tool.ruff.lint]
@@ -38,18 +39,18 @@ select = ["B", "C4", "C90", "E", "F", "I", "PLR", "RUF", "S", "SIM", "T20", "UP"
 fixable = ["ALL"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S101", "PLR2004", "T20"]
+"**/tests/**/*.py" = ["S101", "PLR2004", "T20"]
 
 [tool.ruff.format]
 quote-style = "double"
 docstring-code-format = true
 
 [tool.basedpyright]
-include = ["src"]
+include = ["app/*/src"]
 typeCheckingMode = "standard"
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["app/*/tests"]
 asyncio_mode = "auto"
 addopts = ["-ra", "--strict-markers", "--strict-config"]
 ```

@@ -26,14 +26,14 @@ build-backend = "uv_build"
 # --- Ruff ---
 [tool.ruff]
 target-version = "py313"
-src = ["src", "tests"]
+src = ["app/*/src", "app/*/tests"]
 line-length = 120
 
 [tool.ruff.lint]
 select = ["B", "C4", "C90", "D", "E", "F", "I", "PLR", "PT", "RUF", "S", "SIM", "T20", "UP"]
 fixable = ["ALL"]
 ignore = ["D107", "D415", "D212", "D100", "D104"]
-exclude = ["tests/**"]
+exclude = ["app/*/tests/**"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
@@ -57,14 +57,14 @@ docstring-code-format = true
 
 # --- BasedPyright ---
 [tool.basedpyright]
-include = ["src"]
+include = ["app/*/src"]
 typeCheckingMode = "strict"
 failOnWarnings = false
 
 # --- Pytest ---
 [tool.pytest.ini_options]
-testpaths = ["tests"]
-addopts = ["-ra", "--strict-markers", "--strict-config", "--cov=src/module_name", "--cov-report=term-missing", "--cov-fail-under=80"]
+testpaths = ["app/*/tests"]
+addopts = ["-ra", "--strict-markers", "--strict-config", "--cov=app/*/src", "--cov-report=term-missing", "--cov-fail-under=80"]
 filterwarnings = ["error"]
 
 [tool.coverage.run]
@@ -87,27 +87,27 @@ DEV_DEPS = nox.project.dependency_groups(PYPROJECT, "dev")
 def format(session: nox.Session) -> None:
     """Check code formatting with ruff (no fixes)."""
     session.install(*DEV_DEPS)
-    session.run("ruff", "format", "--check", "src/", "tests/")
+    session.run("ruff", "format", "--check", "app/*/src/", "app/*/tests/")
 
 @nox.session(python=PYTHON_VERSION)
 def lint(session: nox.Session) -> None:
     """Lint the codebase using ruff (no fixes)."""
     session.install(*DEV_DEPS)
-    session.run("ruff", "check", "src/", "tests/")
+    session.run("ruff", "check", "app/*/src/", "app/*/tests/")
 
 @nox.session(python=PYTHON_VERSION)
 def typecheck(session: nox.Session) -> None:
     """Type check using basedpyright."""
     session.install(*DEV_DEPS)
     session.install(".")
-    session.run("basedpyright", "src/")
+    session.run("basedpyright", "app/*/src/")
 
 @nox.session(python=PYTHON_VERSION)
 def tests(session: nox.Session) -> None:
     """Run the test suite."""
     session.install(*DEV_DEPS)
     session.install(".")
-    session.run("pytest", "tests/", *session.posargs)
+    session.run("pytest", "app/*/tests/", *session.posargs)
 ```
 
 ## CONTRIBUTING.md

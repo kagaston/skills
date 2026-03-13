@@ -39,7 +39,7 @@ Run all CI checks locally before pushing. Execute in order; stop and fix at each
 1. **Format** -- `just format` or `uv run ruff format .`
 2. **Lint** -- `just lint` or `uv run ruff check --fix .`
 3. **Typecheck** -- `just typecheck` or `uv run basedpyright src/`
-4. **Test** -- `just test` or `uv run pytest tests/ -v`
+4. **Test** -- `just test` or `uv run pytest app/*/tests/ -v`
 5. **Push** -- only after all pass
 
 ```just
@@ -67,13 +67,13 @@ lint:
     uv run ruff check --fix .
 
 typecheck:
-    uv run basedpyright src/
+    uv run basedpyright app/*/src/
 
-test:
-    uv run pytest tests/ -v
+test pkg="*" *args="":
+    uv run pytest app/{{pkg}}/tests/ -v --tb=short {{args}}
 
 test-cov:
-    uv run pytest tests/ --cov=app --cov-report=term-missing
+    uv run pytest app/*/tests/ --cov=app --cov-report=term-missing --tb=short
 
 check:
     uv run nox

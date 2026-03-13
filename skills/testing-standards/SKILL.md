@@ -51,18 +51,26 @@ Focus each test on one behavior.
 ## Python (pytest)
 
 ### Directory Structure
+
+Tests live inside each workspace member under `app/{name}/tests/`:
+
 ```
-tests/
-├── __init__.py
-├── conftest.py              # Shared fixtures
-├── unit/
-│   ├── __init__.py
-│   └── test_services.py
-├── integration/
-│   ├── __init__.py
-│   └── test_api.py
-└── e2e/
-    └── test_workflows.py
+app/
+└── my_app/
+    ├── src/
+    │   └── my_app/
+    ├── tests/
+    │   ├── __init__.py
+    │   ├── conftest.py          # Shared fixtures
+    │   ├── unit/
+    │   │   ├── __init__.py
+    │   │   └── test_services.py
+    │   ├── integration/
+    │   │   ├── __init__.py
+    │   │   └── test_api.py
+    │   └── e2e/
+    │       └── test_workflows.py
+    └── pyproject.toml
 ```
 
 ### conftest.py Patterns
@@ -112,7 +120,8 @@ class TestUserService:
         assert service.normalize_email(email) == expected
 ```
 
-### pyproject.toml Configuration
+### pyproject.toml Configuration (member)
+
 ```toml
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -124,7 +133,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["app"]
+source = ["src"]
 branch = true
 
 [tool.coverage.report]
@@ -287,17 +296,17 @@ user_with_name = UserFactory(name="John Doe")
 ## justfile Commands
 
 ```just
-test:
-    pytest tests/ -v
+test pkg="*" *args="":
+    uv run pytest app/{{pkg}}/tests/ -v --tb=short {{args}}
 
 test-cov:
-    pytest tests/ --cov=app --cov-report=term-missing
+    uv run pytest app/*/tests/ --cov=app --cov-report=term-missing --tb=short
 
-test-unit:
-    pytest tests/unit/ -v
+test-unit pkg="*":
+    uv run pytest app/{{pkg}}/tests/unit/ -v
 
-test-integration:
-    pytest tests/integration/ -v -m integration
+test-integration pkg="*":
+    uv run pytest app/{{pkg}}/tests/integration/ -v -m integration
 ```
 
 ## Docker Container Testing

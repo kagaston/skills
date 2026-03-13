@@ -9,31 +9,44 @@ When creating or reviewing FastAPI applications, follow this structure derived f
 
 ## Directory Structure
 
+All Python projects use the `app/{name}/src/{name}/` monorepo layout:
+
 ```
-src/project_name/
-├── __init__.py
-├── app.py                  # FastAPI app factory
-├── main.py                 # Entry point (uvicorn)
-├── config.py               # Pydantic settings
-├── sentry.py               # Error tracking setup
-├── console.py              # Interactive REPL
-├── auth/                   # Authentication
-├── clients/                # External API clients
-├── database/               # DB connection, session
-├── dependencies/           # FastAPI dependencies
-├── middleware/             # Custom middleware
-├── migrations/             # Alembic migrations
-├── models/                 # SQLAlchemy models
-├── repositories/           # Data access layer
-├── routers/                # API endpoints
-│   ├── __init__.py
-│   ├── status.py           # Health check
-│   └── v1/                 # Versioned API
-├── schemas/                # Pydantic schemas
-├── services/               # Business logic
-├── temporal/               # Workflow definitions (if using Temporal)
-├── utils/                  # Shared utilities
-└── workers/                # Background workers
+project-name/
+├── app/
+│   └── project_name/
+│       ├── src/
+│       │   └── project_name/
+│       │       ├── __init__.py
+│       │       ├── app.py              # FastAPI app factory
+│       │       ├── main.py             # Entry point (uvicorn)
+│       │       ├── config.py           # Pydantic settings
+│       │       ├── auth/               # Authentication
+│       │       ├── clients/            # External API clients
+│       │       ├── database/           # DB connection, session
+│       │       ├── dependencies/       # FastAPI dependencies
+│       │       ├── middleware/         # Custom middleware
+│       │       ├── migrations/         # Alembic migrations
+│       │       ├── models/             # SQLAlchemy models
+│       │       ├── repositories/       # Data access layer
+│       │       ├── routers/            # API endpoints
+│       │       │   ├── __init__.py
+│       │       │   ├── status.py       # Health check
+│       │       │   └── v1/             # Versioned API
+│       │       ├── schemas/            # Pydantic schemas
+│       │       ├── services/           # Business logic
+│       │       ├── utils/              # Shared utilities
+│       │       └── workers/            # Background workers
+│       ├── tests/
+│       │   ├── __init__.py
+│       │   ├── conftest.py
+│       │   ├── unit/
+│       │   ├── integration/
+│       │   └── e2e/
+│       └── pyproject.toml
+├── pyproject.toml                      # Root workspace config
+├── uv.lock
+└── justfile
 ```
 
 ## App Factory Pattern
@@ -190,7 +203,8 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(skip_integration)
 ```
 
-### pyproject.toml pytest config
+### pyproject.toml pytest config (member)
+
 ```toml
 [tool.pytest.ini_options]
 pythonpath = ["src"]
@@ -218,17 +232,17 @@ format:
 lint:
     uv run ruff check --fix .
 
-test *args:
-    uv run pytest tests/ --ignore=tests/e2e {{ args }}
+test pkg="*" *args="":
+    uv run pytest app/{{pkg}}/tests/ --ignore=app/{{pkg}}/tests/e2e -v --tb=short {{args}}
 
-test-integration *args:
-    uv run pytest tests/ --ignore=tests/e2e --run-integration {{ args }}
+test-integration pkg="*" *args="":
+    uv run pytest app/{{pkg}}/tests/ --ignore=app/{{pkg}}/tests/e2e --run-integration {{args}}
 
-test-e2e *args:
-    uv run pytest tests/e2e --run-e2e --no-cov {{ args }}
+test-e2e pkg="*" *args="":
+    uv run pytest app/{{pkg}}/tests/e2e --run-e2e --no-cov {{args}}
 
 typecheck:
-    uv run basedpyright src/
+    uv run basedpyright app/*/src/
 
 check:
     uv run nox

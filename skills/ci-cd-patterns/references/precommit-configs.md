@@ -66,7 +66,7 @@ echo "[+] Done with pre-push checks"
 #!/bin/sh
 exec 1>&2
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-cd "${REPO_ROOT}" && uv run pytest tests/ -v --tb=short
+cd "${REPO_ROOT}" && uv run pytest app/*/tests/ -v --tb=short
 ```
 
 ## Pre-commit Framework Configs
@@ -151,7 +151,7 @@ jobs:
       - run: uv sync --frozen
       - run: uv run ruff check .
       - run: uv run ruff format --check .
-      - run: uv run basedpyright src/
+      - run: uv run basedpyright app/*/src/
 
   test:
     runs-on: ubuntu-latest
@@ -163,7 +163,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
       - uses: astral-sh/setup-uv@v1
       - run: uv sync --frozen
-      - run: uv run pytest tests/ -v --cov=app --cov-report=xml
+      - run: uv run pytest app/*/tests/ -v --cov=app --cov-report=xml
       - uses: codecov/codecov-action@v3
 
   build:

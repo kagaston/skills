@@ -43,7 +43,7 @@ When encountering an issue, ask:
 
 ### Dependency Issues
 
-- **Diagnosis**: `uv pip check` or `pip check`
+- **Diagnosis**: `uv pip check`
 - **Common**: conflicting versions, missing dependencies, wrong virtualenv
 - **Fix**: update `pyproject.toml`, run `uv sync`, verify virtualenv
 
