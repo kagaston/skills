@@ -2,7 +2,7 @@
 
 ## Project Context
 
-This is a centralized skills library for AI coding agents (Cursor, Goose, Claude Code, and Amp). It contains 28 skills covering coding standards, workflows, and conventions harvested from 30+ projects.
+This is a centralized skills library for AI coding agents (Cursor, Goose, Claude Code, and Amp). It contains 34 skills covering coding standards, workflows, and conventions harvested from 30+ projects.
 
 - **Primary language**: Markdown (SKILL.md files)
 - **Task runner**: just
@@ -47,7 +47,7 @@ Development guidance lives in `skills/`. Read the relevant SKILL.md before start
 | Cross-Language | `linting-standards`, `testing-standards`, `ci-cd-patterns`, `cross-language-comments`, `documentation-standards`, `terraform-project-structure` |
 | Git | `git-conventions`, `git-branching`, `git-pull-requests`, `project-templates` |
 | Documentation | `readme-blueprint-generator` |
-| Agent Behavior | `agent-workflow`, `self-improvement`, `subagent-patterns`, `skill-creator`, `code-review` |
+| Agent Behavior | `agent-workflow`, `self-improvement`, `subagent-patterns`, `skill-creator`, `code-review`, `implementation-plans` |
 | MCP | `mcp-server` |
 
 ## Common Tasks
