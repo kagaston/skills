@@ -11,28 +11,34 @@ Create Model Context Protocol servers in Python using [FastMCP](https://gofastmc
 ## Project Setup
 
 ```bash
-uv init <server-name> --no-readme
+mkdir -p <server-name>/app/<module_name>/src/<module_name>/tools
+mkdir -p <server-name>/app/<module_name>/tests
 cd <server-name>
+uv init
 uv add fastmcp
 uv add --dev ruff basedpyright pytest pytest-asyncio
-mkdir -p src/<module_name>/tools tests
 ```
 
 ### Project Structure
 
 ```
 <server-name>/
-├── src/<module_name>/
-│   ├── __init__.py
-│   ├── server.py              # FastMCP server definition
-│   └── tools/
-│       ├── __init__.py
-│       └── <domain>.py        # Tool implementations
-├── tests/
-│   ├── __init__.py
-│   ├── test_<domain>.py       # Unit tests for tools
-│   └── test_server.py         # Integration tests via FastMCP Client
-├── pyproject.toml
+├── app/
+│   └── <module_name>/
+│       ├── src/
+│       │   └── <module_name>/
+│       │       ├── __init__.py
+│       │       ├── server.py          # FastMCP server definition
+│       │       └── tools/
+│       │           ├── __init__.py
+│       │           └── <domain>.py    # Tool implementations
+│       ├── tests/
+│       │   ├── __init__.py
+│       │   ├── test_<domain>.py       # Unit tests for tools
+│       │   └── test_server.py         # Integration tests via FastMCP Client
+│       └── pyproject.toml
+├── pyproject.toml                     # Root workspace config
+├── uv.lock
 ├── justfile
 └── README.md
 ```
@@ -220,21 +226,21 @@ lint:
     uv run ruff check --fix .
 
 typecheck:
-    uv run basedpyright src/
+    uv run basedpyright app/*/src/
 
-test *args:
-    uv run pytest tests/ {{args}}
+test pkg="*" *args="":
+    uv run pytest app/{{pkg}}/tests/ -v --tb=short {{args}}
 
 check: format lint typecheck test
 
 run:
-    uv run python src/<module>/server.py
+    uv run python app/<module>/src/<module>/server.py
 
 run-http:
-    uv run python src/<module>/server.py --http
+    uv run python app/<module>/src/<module>/server.py --http
 
 dev:
-    uv run fastmcp dev src/<module>/server.py:mcp
+    uv run fastmcp dev app/<module>/src/<module>/server.py:mcp
 ```
 
 ## Key Rules

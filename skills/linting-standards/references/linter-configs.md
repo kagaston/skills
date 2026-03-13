@@ -7,7 +7,7 @@ Complete `pyproject.toml` configuration for ruff linting and formatting.
 ```toml
 [tool.ruff]
 target-version = "py313"
-src = ["src", "tests"]
+src = ["app/*/src", "app/*/tests"]
 line-length = 120
 
 [tool.ruff.lint]
@@ -29,7 +29,7 @@ select = [
 ]
 fixable = ["ALL"]
 ignore = ["D107", "D415", "D212", "D100", "D104"]
-exclude = ["tests/**"]
+exclude = ["app/*/tests/**"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
@@ -50,7 +50,7 @@ docstring-code-format = true
 
 ```toml
 [tool.basedpyright]
-include = ["src"]
+include = ["app/*/src"]
 typeCheckingMode = "strict"
 failOnWarnings = false
 ```
@@ -62,20 +62,20 @@ failOnWarnings = false
 def format(session: nox.Session) -> None:
     """Check code formatting with ruff (no fixes)."""
     session.install(*DEV_DEPS)
-    session.run("ruff", "format", "--check", "src/", "tests/")
+    session.run("ruff", "format", "--check", "app/*/src/", "app/*/tests/")
 
 @nox.session(python=PYTHON_VERSION)
 def lint(session: nox.Session) -> None:
     """Lint the codebase using ruff (no fixes)."""
     session.install(*DEV_DEPS)
-    session.run("ruff", "check", "src/", "tests/")
+    session.run("ruff", "check", "app/*/src/", "app/*/tests/")
 
 @nox.session(python=PYTHON_VERSION)
 def typecheck(session: nox.Session) -> None:
     """Type check using basedpyright."""
     session.install(*DEV_DEPS)
     session.install(".")
-    session.run("basedpyright", "src/")
+    session.run("basedpyright", "app/*/src/")
 ```
 
 ## Go (.golangci.yml)
@@ -156,12 +156,21 @@ rule "terraform_documented_variables" {
 ## YAML (.yamllint)
 
 ```yaml
+---
+extends: default
+
 rules:
   document-start: disable
   line-length:
-    max: 120
+    max: 150
+    allow-non-breakable-words: true
+    allow-non-breakable-inline-mappings: true
   indentation:
     spaces: 2
+    indent-sequences: consistent
   comments:
     min-spaces-from-content: 1
+  truthy:
+    allowed-values: ["true", "false", "yes", "no"]
+    check-keys: false
 ```

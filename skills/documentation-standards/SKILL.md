@@ -29,7 +29,7 @@ Brief one-line description of what this project does.
 
 \`\`\`bash
 # Installation
-uv pip install project-name
+uv sync
 
 # Basic usage
 project-name --help

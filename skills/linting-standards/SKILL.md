@@ -33,7 +33,7 @@ All must pass before commit: **format -> lint -> typecheck -> test**
 
 1. `ruff format .` -- formatting (quotes, line length)
 2. `ruff check --fix .` -- linting + isort via `I` rule, auto-fixes
-3. `basedpyright src/` -- type checking
+3. `basedpyright app/*/src/` -- type checking
 
 ### justfile Commands
 
@@ -45,7 +45,7 @@ lint:
     uv run ruff check --fix .
 
 typecheck:
-    uv run basedpyright src/
+    uv run basedpyright app/*/src/
 
 check:
     uv run nox
