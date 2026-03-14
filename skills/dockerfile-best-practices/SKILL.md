@@ -60,6 +60,57 @@ FROM base AS runtime
 # runtime only
 ```
 
+### Layered Image Hierarchy (Monorepo)
+
+For uv workspace monorepos where multiple images share deps, build a base image that all child images extend. This avoids reinstalling the same workspace deps in every Dockerfile.
+
+The base image lives in `docker/base/Dockerfile` and child images in `docker/{name}/Dockerfile`. Standalone containers live in `containers/{name}/Dockerfile` and don't extend the base.
+
+```dockerfile
+# docker/base/Dockerfile — shared deps for all workspace packages
+FROM python:3.12-slim AS base
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+WORKDIR /app
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
+
+# Copy workspace manifests first for layer caching
+COPY pyproject.toml uv.lock ./
+COPY app/pkg-a/pyproject.toml app/pkg-a/pyproject.toml
+COPY app/pkg-b/pyproject.toml app/pkg-b/pyproject.toml
+
+# Stub __init__.py so uv can resolve workspace members during sync
+RUN for pkg in pkg_a pkg_b; do \
+    mkdir -p "app/${pkg}/src/${pkg}" && \
+    touch "app/${pkg}/src/${pkg}/__init__.py"; \
+    done
+
+# Corporate proxy support via build arg
+ARG UV_INSECURE_HOST=""
+RUN --mount=type=cache,target=/root/.cache/uv \
+    UV_INSECURE_HOST="$UV_INSECURE_HOST" \
+    uv sync --no-dev --frozen 2>/dev/null || uv sync --no-dev
+
+# Source code last (invalidates cache on every change)
+COPY app/ app/
+RUN useradd -r -m -s /bin/false app
+```
+
+```dockerfile
+# docker/my-service/Dockerfile — extends base, adds config + entrypoint
+FROM project-base:local
+COPY config.yaml /app/config.yaml
+USER app
+CMD ["uv", "run", "my-service", "serve"]
+```
+
+Key patterns:
+- **`UV_COMPILE_BYTECODE=1`** -- precompile `.pyc` for faster startup
+- **`UV_LINK_MODE=copy`** -- copy files instead of hardlinks (works across Docker layers)
+- **`ARG UV_INSECURE_HOST`** -- allows builds behind corporate TLS-intercepting proxies
+- **`--mount=type=cache`** -- caches uv downloads across builds
+- **Fallback sync** -- `uv sync --frozen 2>/dev/null || uv sync --no-dev` handles missing lockfile gracefully
+
 ## Layer Optimization
 
 Docker caches layers. Order instructions from least to most frequently changing:
@@ -473,6 +524,36 @@ test-docker: build test-structure test-runtime
 
 Prefer `-slim` or `-alpine` variants. Use distroless for maximum security when you don't need a shell.
 
+## Standalone Container Pattern (containers/)
+
+Standalone containers live in `containers/{name}/` and are self-contained -- they don't extend the project's base image. Use them for sandboxes, one-off tools, security scanners, or any workload that needs process isolation.
+
+```dockerfile
+# containers/sandbox/Dockerfile
+FROM python:3.12-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git curl jq \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+RUN useradd -r -m -s /bin/bash sandbox
+RUN mkdir -p /workspace/output && chown -R sandbox:sandbox /workspace
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+USER sandbox
+ENTRYPOINT ["/entrypoint.sh"]
+```
+
+Pair each Dockerfile with an `entrypoint.sh`:
+- `set -euo pipefail` at the top
+- Accept the task as the first argument
+- Use `TIMEOUT` env var with a default for bounded execution
+- Write output to `OUTPUT_DIR` (default `/workspace/output`)
+- Write a `status.json` on completion
+
 ## Verification Checklist
 
 - [ ] Multi-stage build separates build and runtime
@@ -489,3 +570,7 @@ Prefer `-slim` or `-alpine` variants. Use distroless for maximum security when y
 - [ ] Container structure tests validate metadata, files, and env vars
 - [ ] Runtime tests verify ports, processes, and user after container starts
 - [ ] Vulnerability scan (trivy/docker scout) runs in CI
+- [ ] Layered base image copies pyproject.toml manifests before source for cache efficiency
+- [ ] `UV_COMPILE_BYTECODE=1` and `UV_LINK_MODE=copy` set in base image
+- [ ] `containers/` Dockerfiles are self-contained (no `FROM base`)
+- [ ] Entrypoint scripts in `containers/` use `set -euo pipefail` and write status.json

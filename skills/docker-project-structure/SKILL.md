@@ -58,6 +58,171 @@ project-name/
 └── README.md
 ```
 
+## Layered Image Hierarchy (Monorepo)
+
+For uv workspace monorepos or projects where multiple images share a common base, use a layered `docker/` directory with a separate `containers/` directory for standalone workloads.
+
+```
+project-name/
+├── app/                          # Workspace packages (source code)
+│   ├── package-a/
+│   │   ├── src/package_a/
+│   │   ├── tests/
+│   │   └── pyproject.toml
+│   └── package-b/
+│       ├── src/package_b/
+│       ├── tests/
+│       └── pyproject.toml
+├── docker/                       # Build-time image hierarchy
+│   ├── base/
+│   │   └── Dockerfile            # Layer 0: python + uv + all workspace deps
+│   ├── app-name/
+│   │   └── Dockerfile            # Layer 1: FROM base, adds app config + CMD
+│   └── docker-compose.yml        # Orchestrates all services
+├── containers/                   # Standalone runtime containers
+│   └── sandbox/
+│       ├── Dockerfile            # Self-contained, does NOT extend base
+│       └── entrypoint.sh         # Entry script for the container
+├── pyproject.toml                # Root workspace config
+├── uv.lock
+├── .dockerignore
+├── .hadolint.yaml
+├── justfile
+└── .env.example
+```
+
+### docker/ vs containers/
+
+These directories serve different purposes:
+
+| Directory | Purpose | Extends base? | Part of compose? |
+|-----------|---------|---------------|------------------|
+| `docker/` | Build hierarchy for the main application | Yes (layered) | Yes |
+| `containers/` | Isolated, standalone containers for sandboxes, tools, sidecars | No (self-contained) | Optional (profiles) |
+
+**`docker/`** holds the image layers that share a common base and compose into the main application stack. The base image installs uv, copies workspace `pyproject.toml` files, syncs deps, and copies source. Child images (`FROM base`) add config and entrypoints.
+
+**`containers/`** holds standalone Dockerfiles for isolated workloads -- sandboxes, security scanners, one-off tools. These build independently and don't inherit from the base image. They're useful when you need process isolation, restricted permissions, or a different base entirely.
+
+### Base Image Pattern
+
+The base Dockerfile installs shared deps and copies all workspace package manifests before source code, maximizing layer cache:
+
+```dockerfile
+# docker/base/Dockerfile
+FROM python:3.12-slim AS base
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+WORKDIR /app
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
+
+# Copy all workspace pyproject.toml files first (cached layer)
+COPY pyproject.toml uv.lock ./
+COPY app/package-a/pyproject.toml app/package-a/pyproject.toml
+COPY app/package-b/pyproject.toml app/package-b/pyproject.toml
+
+# Create stub __init__.py so uv can resolve workspace members
+RUN for pkg in package_a package_b; do \
+    mkdir -p "app/${pkg}/src/${pkg}" && \
+    touch "app/${pkg}/src/${pkg}/__init__.py"; \
+    done
+
+ARG UV_INSECURE_HOST=""
+RUN --mount=type=cache,target=/root/.cache/uv \
+    UV_INSECURE_HOST="$UV_INSECURE_HOST" \
+    uv sync --no-dev --frozen 2>/dev/null || uv sync --no-dev
+
+# Copy actual source (least-cached layer)
+COPY app/ app/
+
+RUN useradd -r -m -s /bin/false app
+```
+
+### Child Image Pattern
+
+Child images reference the base by local tag, add app-specific config, and set the entrypoint:
+
+```dockerfile
+# docker/app-name/Dockerfile
+FROM project-base:local
+
+LABEL description="App description"
+
+COPY config/ /app/config/
+USER app
+CMD ["uv", "run", "app-name", "serve"]
+```
+
+### Compose with Build Profiles
+
+Use profiles to separate the build-only base from running services:
+
+```yaml
+services:
+  base:
+    build:
+      context: ..
+      dockerfile: docker/base/Dockerfile
+    image: project-base:local
+    profiles:
+      - build
+
+  app:
+    build:
+      context: ..
+      dockerfile: docker/app-name/Dockerfile
+    image: project-app:local
+    container_name: project-app
+    depends_on:
+      base:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  sandbox:
+    build:
+      context: ../containers/sandbox
+    image: project-sandbox:local
+    profiles:
+      - sandbox
+    volumes:
+      - sandbox_output:/workspace/output
+```
+
+### Standalone Container Pattern
+
+Containers in `containers/` are self-contained -- they install their own deps and have their own entrypoint:
+
+```dockerfile
+# containers/sandbox/Dockerfile
+FROM python:3.12-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git curl jq \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN useradd -r -m -s /bin/bash sandbox
+WORKDIR /workspace
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+USER sandbox
+ENTRYPOINT ["/entrypoint.sh"]
+```
+
+```bash
+# containers/sandbox/entrypoint.sh
+#!/usr/bin/env bash
+set -euo pipefail
+
+TASK="$1"
+TIMEOUT="${TIMEOUT:-300}"
+OUTPUT_DIR="${OUTPUT_DIR:-/workspace/output}"
+
+mkdir -p "$OUTPUT_DIR"
+timeout "$TIMEOUT" "$TASK" >"$OUTPUT_DIR/stdout.log" 2>"$OUTPUT_DIR/stderr.log" || true
+echo '{"status": "complete"}' > "$OUTPUT_DIR/status.json"
+```
+
 ## Dual Deployment Project (Compose + K8s)
 
 For projects that support both Docker Compose (local dev) and Kubernetes (cluster deployment):
@@ -158,6 +323,43 @@ lint-docker:
 
 clean:
     docker compose down -v --rmi local
+    docker image prune -f
+```
+
+### Layered Hierarchy
+
+```just
+compose := "docker compose -f docker/docker-compose.yml"
+
+# Build the base image first, then all services
+docker-build:
+    docker build -f docker/base/Dockerfile -t project-base:local .
+    {{compose}} build
+
+# Build and start the full stack
+up: docker-build
+    {{compose}} up -d
+
+down:
+    {{compose}} down
+
+logs service="":
+    {{compose}} logs -f {{service}}
+
+# Build a standalone container
+container-build name:
+    docker build -f containers/{{name}}/Dockerfile -t project-{{name}}:local containers/{{name}}/
+
+# Lint all Dockerfiles (docker/ and containers/)
+lint-docker:
+    @find docker/ containers/ -name 'Dockerfile' -exec hadolint {} +
+
+# Run the sandbox container on-demand
+sandbox recipe:
+    {{compose}} --profile sandbox run --rm goose-sandbox {{recipe}}
+
+clean:
+    {{compose}} down -v --rmi local
     docker image prune -f
 ```
 
@@ -565,11 +767,11 @@ build/
 
 ## Verification Checklist
 
-- [ ] Dockerfile at project root (or per-service under `services/`)
+- [ ] Dockerfile at project root (or per-service under `docker/` or `services/`)
 - [ ] .dockerignore excludes dev files, .git, .env, IDE configs
 - [ ] justfile has build, lint-docker, and clean recipes
 - [ ] CI pipeline: lint → build → scan → push
-- [ ] hadolint passes on all Dockerfiles
+- [ ] hadolint passes on all Dockerfiles (both `docker/` and `containers/`)
 - [ ] .env.example documents required environment variables
 - [ ] Build scripts use `set -euo pipefail`
 - [ ] Tagging strategy includes both version and latest
@@ -580,3 +782,8 @@ build/
 - [ ] K8s manifests mirror compose topology (if dual deployment)
 - [ ] YAML files linted with yamllint
 - [ ] No secrets committed (`.env` is gitignored, `.env.example` has no values)
+- [ ] Layered hierarchy: `docker/base/` installs shared deps, child images use `FROM base`
+- [ ] `containers/` holds standalone Dockerfiles that don't extend the base
+- [ ] Base image copies `pyproject.toml` files before source code for layer caching
+- [ ] Entrypoint scripts in `containers/` use `set -euo pipefail` and are `chmod +x`
+- [ ] Compose profiles separate build-only and on-demand services
