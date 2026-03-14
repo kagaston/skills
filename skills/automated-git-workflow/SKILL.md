@@ -15,6 +15,22 @@ Stage → Commit → Push Branch → Monitor CI → Merge to dev → Delete Bran
 
 The entire flow runs against a Git Flow model where `dev` is the integration branch and `main` is release-only. Feature branches are short-lived and always target `dev`.
 
+## Prerequisite: Ensure dev Exists
+
+Before starting any workflow, verify the repo has a `dev` branch. If it does not, create one from `main`:
+
+```bash
+git fetch origin
+if ! git rev-parse --verify origin/dev >/dev/null 2>&1; then
+  git checkout main
+  git pull --rebase origin main
+  git checkout -b dev
+  git push -u origin dev
+fi
+```
+
+This only needs to happen once per repo. After `dev` exists, all feature work targets it.
+
 ## Workflow Steps
 
 ### 1. Start from a Clean dev
@@ -65,7 +81,16 @@ Commit rules:
 - Body explains *why*, not *what*
 - Run lint + tests before committing
 
-### 4. Push the Branch
+### 4. Pull Before Push
+
+Always rebase onto the latest `dev` before every push. This prevents stale branches and merge conflicts downstream:
+
+```bash
+git fetch origin
+git rebase origin/dev
+```
+
+If rebase produces conflicts, resolve them one commit at a time. Only after a clean rebase should you push.
 
 First push sets upstream tracking:
 
@@ -73,20 +98,23 @@ First push sets upstream tracking:
 git push -u origin HEAD
 ```
 
-Subsequent pushes:
-
-```bash
-git push
-```
-
-### 5. Work the Branch
-
-Continue making incremental commits. Rebase onto `dev` regularly to stay current:
+Subsequent pushes (always rebase first):
 
 ```bash
 git fetch origin
 git rebase origin/dev
+git push
 ```
+
+If the remote branch has diverged due to the rebase, force-push the feature branch only (never force-push `dev` or `main`):
+
+```bash
+git push --force-with-lease
+```
+
+### 5. Work the Branch
+
+Continue making incremental commits. The pull-before-push rule applies to every push, not just the first one. The habit is: fetch, rebase, push.
 
 When the work is complete and tests pass, proceed to merge.
 
@@ -156,18 +184,28 @@ ls -d "$(dirname "$(pwd)")/skill"*/ "$(dirname "$(pwd)")/skills"*/ 2>/dev/null
 
 For each skill repo found (e.g. `skills-external/`, `skills-internal/`):
 
-1. Check if the skill already exists in the target repo's `skills/` directory
-2. If it exists: compare content, update if changed
-3. If new: copy the skill directory into the target repo's `skills/`
-4. Stage, commit, and push the change in the target repo:
+1. Ensure the repo has a `dev` branch (create from `main` if missing -- see Prerequisite above)
+2. Check if the skill already exists in the target repo's `skills/` directory
+3. If it exists: compare content, update if changed
+4. If new: copy the skill directory into the target repo's `skills/`
+5. Rebase onto dev before pushing, then stage, commit, and push:
 
 ```bash
 cd <target-skill-repo>
+git fetch origin
+
+# Ensure dev exists
+if ! git rev-parse --verify origin/dev >/dev/null 2>&1; then
+  git checkout main && git pull --rebase origin main
+  git checkout -b dev && git push -u origin dev
+fi
+
 git checkout dev && git pull --rebase origin dev
 git checkout -b chore/sync-skill-<skill-name>
 cp -r <source-project>/skills/<skill-name> skills/
 git add skills/<skill-name>/
 git commit -m "chore(skills): sync <skill-name> from <project>"
+git fetch origin && git rebase origin/dev
 git push -u origin HEAD
 git checkout dev
 git merge --no-ff chore/sync-skill-<skill-name>
@@ -176,17 +214,21 @@ git branch -d chore/sync-skill-<skill-name>
 git push origin --delete chore/sync-skill-<skill-name>
 ```
 
+If the target repo has branch protection on `dev` or `main`, create a PR instead of merging directly.
+
 Only sync skills that are explicitly marked for external sharing. Project-specific skills (e.g. internal config loaders) stay local.
 
 ## Decision Table
 
 | Situation | Action |
 |---|---|
+| Repo has no `dev` branch | Create `dev` from `main` and push before proceeding |
 | No CI workflows on repo | Skip step 7, proceed to cleanup |
 | CI fails | Fix on branch, re-merge, re-check |
 | CI passes | Delete branch, sync skills |
 | Skill already exists in target repo | Compare and update if changed |
 | Skill is project-specific | Do not propagate |
+| Target repo has branch protection | Create a PR instead of direct merge |
 | Hotfix needed on main | Branch from `main`, merge back to both `main` and `dev` |
 
 ## Anti-Patterns
