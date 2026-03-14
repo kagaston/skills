@@ -64,10 +64,10 @@ FROM base AS runtime
 
 For uv workspace monorepos where multiple images share deps, build a base image that all child images extend. This avoids reinstalling the same workspace deps in every Dockerfile.
 
-The base image lives in `docker/base/Dockerfile` and child images in `docker/{name}/Dockerfile`. Standalone containers live in `containers/{name}/Dockerfile` and don't extend the base.
+All Dockerfiles live in `containers/`. The base image is at `containers/base/Dockerfile`, child images at `containers/{name}/Dockerfile`, and standalone containers at `containers/{name}/Dockerfile` with their own entrypoint scripts. Compose and build config lives in `docker/`.
 
 ```dockerfile
-# docker/base/Dockerfile — shared deps for all workspace packages
+# containers/base/Dockerfile — shared deps for all workspace packages
 FROM python:3.12-slim AS base
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
@@ -97,7 +97,7 @@ RUN useradd -r -m -s /bin/false app
 ```
 
 ```dockerfile
-# docker/my-service/Dockerfile — extends base, adds config + entrypoint
+# containers/my-service/Dockerfile — extends base, adds config + entrypoint
 FROM project-base:local
 COPY config.yaml /app/config.yaml
 USER app
@@ -572,5 +572,5 @@ Pair each Dockerfile with an `entrypoint.sh`:
 - [ ] Vulnerability scan (trivy/docker scout) runs in CI
 - [ ] Layered base image copies pyproject.toml manifests before source for cache efficiency
 - [ ] `UV_COMPILE_BYTECODE=1` and `UV_LINK_MODE=copy` set in base image
-- [ ] `containers/` Dockerfiles are self-contained (no `FROM base`)
+- [ ] Standalone containers in `containers/` are self-contained (no `FROM base`)
 - [ ] Entrypoint scripts in `containers/` use `set -euo pipefail` and write status.json

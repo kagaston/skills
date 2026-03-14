@@ -60,7 +60,7 @@ project-name/
 
 ## Layered Image Hierarchy (Monorepo)
 
-For uv workspace monorepos or projects where multiple images share a common base, use a layered `docker/` directory with a separate `containers/` directory for standalone workloads.
+For uv workspace monorepos, all Dockerfiles live in `containers/` and compose/build config lives in `docker/`. This keeps a single home for every container definition while separating orchestration.
 
 ```
 project-name/
@@ -73,16 +73,16 @@ project-name/
 │       ├── src/package_b/
 │       ├── tests/
 │       └── pyproject.toml
-├── docker/                       # Build-time image hierarchy
+├── containers/                   # ALL Dockerfiles live here
 │   ├── base/
 │   │   └── Dockerfile            # Layer 0: python + uv + all workspace deps
 │   ├── app-name/
 │   │   └── Dockerfile            # Layer 1: FROM base, adds app config + CMD
-│   └── docker-compose.yml        # Orchestrates all services
-├── containers/                   # Standalone runtime containers
 │   └── sandbox/
-│       ├── Dockerfile            # Self-contained, does NOT extend base
+│       ├── Dockerfile            # Standalone, does NOT extend base
 │       └── entrypoint.sh         # Entry script for the container
+├── docker/                       # Compose + build config only (no Dockerfiles)
+│   └── docker-compose.yml        # Orchestrates all services
 ├── pyproject.toml                # Root workspace config
 ├── uv.lock
 ├── .dockerignore
@@ -91,25 +91,23 @@ project-name/
 └── .env.example
 ```
 
-### docker/ vs containers/
+### containers/ vs docker/
 
-These directories serve different purposes:
+| Directory | Contains | Purpose |
+|-----------|----------|---------|
+| `containers/` | All Dockerfiles + entrypoint scripts | Every container definition in one place |
+| `docker/` | Compose files, build scripts, overrides | Orchestration and build configuration |
 
-| Directory | Purpose | Extends base? | Part of compose? |
-|-----------|---------|---------------|------------------|
-| `docker/` | Build hierarchy for the main application | Yes (layered) | Yes |
-| `containers/` | Isolated, standalone containers for sandboxes, tools, sidecars | No (self-contained) | Optional (profiles) |
+**`containers/`** is the single home for every Dockerfile in the repo -- both layered app images (base, runner, worker) and standalone containers (sandboxes, tools). Layered images use `FROM base` to share workspace deps. Standalone images are self-contained.
 
-**`docker/`** holds the image layers that share a common base and compose into the main application stack. The base image installs uv, copies workspace `pyproject.toml` files, syncs deps, and copies source. Child images (`FROM base`) add config and entrypoints.
-
-**`containers/`** holds standalone Dockerfiles for isolated workloads -- sandboxes, security scanners, one-off tools. These build independently and don't inherit from the base image. They're useful when you need process isolation, restricted permissions, or a different base entirely.
+**`docker/`** holds only compose files and build-related config. No Dockerfiles. Compose services reference Dockerfiles in `containers/` via the `dockerfile:` key.
 
 ### Base Image Pattern
 
 The base Dockerfile installs shared deps and copies all workspace package manifests before source code, maximizing layer cache:
 
 ```dockerfile
-# docker/base/Dockerfile
+# containers/base/Dockerfile
 FROM python:3.12-slim AS base
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
@@ -143,7 +141,7 @@ RUN useradd -r -m -s /bin/false app
 Child images reference the base by local tag, add app-specific config, and set the entrypoint:
 
 ```dockerfile
-# docker/app-name/Dockerfile
+# containers/app-name/Dockerfile
 FROM project-base:local
 
 LABEL description="App description"
@@ -155,14 +153,15 @@ CMD ["uv", "run", "app-name", "serve"]
 
 ### Compose with Build Profiles
 
-Use profiles to separate the build-only base from running services:
+Compose files live in `docker/` and reference Dockerfiles in `containers/`:
 
 ```yaml
+# docker/docker-compose.yml
 services:
   base:
     build:
       context: ..
-      dockerfile: docker/base/Dockerfile
+      dockerfile: containers/base/Dockerfile
     image: project-base:local
     profiles:
       - build
@@ -170,7 +169,7 @@ services:
   app:
     build:
       context: ..
-      dockerfile: docker/app-name/Dockerfile
+      dockerfile: containers/app-name/Dockerfile
     image: project-app:local
     container_name: project-app
     depends_on:
@@ -326,14 +325,14 @@ clean:
     docker image prune -f
 ```
 
-### Layered Hierarchy
+### Layered Hierarchy (Dockerfiles in containers/, compose in docker/)
 
 ```just
 compose := "docker compose -f docker/docker-compose.yml"
 
 # Build the base image first, then all services
 docker-build:
-    docker build -f docker/base/Dockerfile -t project-base:local .
+    docker build -f containers/base/Dockerfile -t project-base:local .
     {{compose}} build
 
 # Build and start the full stack
@@ -346,13 +345,13 @@ down:
 logs service="":
     {{compose}} logs -f {{service}}
 
-# Build a standalone container
+# Build any container by name
 container-build name:
     docker build -f containers/{{name}}/Dockerfile -t project-{{name}}:local containers/{{name}}/
 
-# Lint all Dockerfiles (docker/ and containers/)
+# Lint all Dockerfiles
 lint-docker:
-    @find docker/ containers/ -name 'Dockerfile' -exec hadolint {} +
+    @find containers/ -name 'Dockerfile' -exec hadolint {} +
 
 # Run the sandbox container on-demand
 sandbox recipe:
@@ -767,11 +766,11 @@ build/
 
 ## Verification Checklist
 
-- [ ] Dockerfile at project root (or per-service under `docker/` or `services/`)
+- [ ] Dockerfiles live in `containers/` (not in `docker/` or project root)
 - [ ] .dockerignore excludes dev files, .git, .env, IDE configs
 - [ ] justfile has build, lint-docker, and clean recipes
 - [ ] CI pipeline: lint → build → scan → push
-- [ ] hadolint passes on all Dockerfiles (both `docker/` and `containers/`)
+- [ ] hadolint passes on all Dockerfiles in `containers/`
 - [ ] .env.example documents required environment variables
 - [ ] Build scripts use `set -euo pipefail`
 - [ ] Tagging strategy includes both version and latest
@@ -782,8 +781,8 @@ build/
 - [ ] K8s manifests mirror compose topology (if dual deployment)
 - [ ] YAML files linted with yamllint
 - [ ] No secrets committed (`.env` is gitignored, `.env.example` has no values)
-- [ ] Layered hierarchy: `docker/base/` installs shared deps, child images use `FROM base`
-- [ ] `containers/` holds standalone Dockerfiles that don't extend the base
+- [ ] Layered hierarchy: `containers/base/` installs shared deps, child images use `FROM base`
+- [ ] Standalone containers in `containers/` are self-contained (no `FROM base`)
 - [ ] Base image copies `pyproject.toml` files before source code for layer caching
 - [ ] Entrypoint scripts in `containers/` use `set -euo pipefail` and are `chmod +x`
 - [ ] Compose profiles separate build-only and on-demand services
