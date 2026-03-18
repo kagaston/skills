@@ -102,7 +102,7 @@ When modifying a skill, check that it doesn't contradict related skills. Common 
 ### Git Conventions
 
 - **Commits**: Conventional commits (`type(scope): description`) -- lowercase imperative, no period
-- **Branching**: Trunk-based development with short-lived feature branches (`feat/`, `fix/`, `docs/`, `chore/`)
+- **Branching**: Git Flow with a long-lived `dev` branch; feature branches (`feat/`, `fix/`, `docs/`, `chore/`) merge into `dev`, which merges into `main` for releases
 - **PRs**: Title follows conventional commit format; include summary, changes, and test plan
 
 ## Files to Avoid Modifying

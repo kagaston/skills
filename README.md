@@ -62,7 +62,7 @@ just validate
 | Skill | Description |
 |-------|-------------|
 | `git-conventions` | Conventional commits, branch naming, breaking change notation |
-| `git-branching` | Trunk-based development, branch lifecycle, planning workflow |
+| `git-branching` | Git Flow with dev branch, branch lifecycle, planning workflow |
 | `git-pull-requests` | PR workflow, project-scoped templates, `gh` CLI commands |
 | `project-templates` | Creating PR/issue templates, CODEOWNERS, CONTRIBUTING when missing |
 
@@ -217,5 +217,12 @@ Trigger it by asking the agent to "generate a README" or "write a README" in any
 - **Pre-commit**: Custom `.hooks/` + pre-commit framework
 - **Comments**: Docstring-first for Python blocks, `#` for inline only
 - **Commits**: Conventional commits (`type(scope): description`)
-- **Branching**: Trunk-based development with short-lived feature branches
+- **Branching**: Git Flow with long-lived `dev` branch; feature branches merge into `dev`
 - **Workflow**: Plan-first (research -> plan -> implement -> review)
+
+
+mkdir -p skills
+curl -s http://localhost:8080/skills | jq -r '.[].name' | while read name; do
+  mkdir -p "skills/$name"
+  curl -s "http://localhost:8080/skills/$(printf '%s' "$name" | jq -sRr @uri)" | jq -r '.content' > "skills/$name/SKILL.md"
+done
